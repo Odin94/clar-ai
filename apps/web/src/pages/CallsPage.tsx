@@ -5,6 +5,7 @@ import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi } from "lucide-reac
 import { toast } from "sonner";
 import { api, type Call } from "@/lib/api";
 import { useCallsStream } from "@/hooks/useCallsStream";
+import { StatsBar } from "@/components/StatsBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -58,6 +59,9 @@ export function CallsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Stats bar */}
+      <StatsBar />
+
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>

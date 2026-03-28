@@ -53,6 +53,17 @@ export interface SyncResponse {
   message: string;
 }
 
+export interface StatsResponse {
+  totalCalls: number;
+  callsToday: number;
+  callsThisWeek: number;
+  successRate: number;
+  failureRate: number;
+  avgDurationSecs: number | null;
+  avgRating: number | null;
+  ratedCount: number;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...options,
@@ -84,4 +95,5 @@ export const api = {
       body: JSON.stringify(data),
     }),
   sync: () => request<SyncResponse>("/sync", { method: "POST" }),
+  getStats: () => request<StatsResponse>("/stats"),
 };
