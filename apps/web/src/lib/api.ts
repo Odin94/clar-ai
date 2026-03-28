@@ -15,7 +15,7 @@ export interface Call {
   syncedAt: number | null;
   hotelMentioned: string | null;
   complaintCategory: string | null;
-  feedback?: Feedback | null;
+  feedback: Feedback | null;
 }
 
 export interface TranscriptEntry {

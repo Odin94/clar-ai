@@ -56,7 +56,6 @@ export async function callsRoutes(app: FastifyInstance) {
           ? conditions[0]
           : and(...conditions) as ReturnType<typeof eq>;
 
-      // Query calls with feedback join
       const rows = await db
         .select({
           id: calls.id,
@@ -70,7 +69,15 @@ export async function callsRoutes(app: FastifyInstance) {
           costCredits: calls.costCredits,
           terminationReason: calls.terminationReason,
           syncedAt: calls.syncedAt,
-          rating: callFeedback.rating,
+          hotelMentioned: calls.hotelMentioned,
+          complaintCategory: calls.complaintCategory,
+          feedbackId: callFeedback.id,
+          feedbackCallId: callFeedback.callId,
+          feedbackRating: callFeedback.rating,
+          feedbackComment: callFeedback.comment,
+          feedbackSource: callFeedback.source,
+          feedbackCreatedAt: callFeedback.createdAt,
+          feedbackUpdatedAt: callFeedback.updatedAt,
         })
         .from(calls)
         .leftJoin(callFeedback, eq(calls.id, callFeedback.callId))
@@ -79,10 +86,28 @@ export async function callsRoutes(app: FastifyInstance) {
         .limit(pageSize)
         .offset(offset);
 
+      // Reshape: nest feedback fields into a `feedback` object (null when absent)
+      const shaped = rows.map(({
+        feedbackId, feedbackCallId, feedbackRating, feedbackComment,
+        feedbackSource, feedbackCreatedAt, feedbackUpdatedAt,
+        ...call
+      }) => ({
+        ...call,
+        feedback: feedbackId ? {
+          id: feedbackId,
+          callId: feedbackCallId,
+          rating: feedbackRating,
+          comment: feedbackComment,
+          source: feedbackSource,
+          createdAt: feedbackCreatedAt,
+          updatedAt: feedbackUpdatedAt,
+        } : null,
+      }));
+
       // Filter by rating after join if requested
       const filtered = query.rating
-        ? rows.filter((r) => r.rating === parseInt(query.rating!, 10))
-        : rows;
+        ? shaped.filter((r) => r.feedback?.rating === parseInt(query.rating!, 10))
+        : shaped;
 
       // Count total
       const countResult = await db

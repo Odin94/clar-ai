@@ -84,11 +84,14 @@ describe("GET /api/calls", () => {
     expect(calls[0].startTime).toBeGreaterThan(calls[1].startTime);
   });
 
-  it("includes feedback rating in list response", async () => {
+  it("includes nested feedback object in list response", async () => {
     const res = await ctx.app.inject({ method: "GET", url: "/api/calls" });
-    const { calls } = res.json<{ calls: Array<{ id: string; rating: number | null }> }>();
+    const { calls } = res.json<{ calls: Array<{ id: string; feedback: { rating: number } | null }> }>();
     const call001 = calls.find((c) => c.id === "conv_001");
-    expect(call001?.rating).toBe(4);
+    expect(call001?.feedback?.rating).toBe(4);
+    // call without feedback should have feedback: null
+    const call002 = calls.find((c) => c.id === "conv_002");
+    expect(call002?.feedback).toBeNull();
   });
 
   it("filters by status (callSuccessful)", async () => {
