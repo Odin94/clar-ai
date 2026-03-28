@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS call_feedback (
 
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 
-export async function createTestApp() {
+export async function createTestApp(opts: { webhookSecret?: string } = {}) {
   // In-memory SQLite – isolated per test suite
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
@@ -103,7 +103,7 @@ export async function createTestApp() {
     ReturnType<typeof import("@clarai/db").getDb>
   >;
 
-  const app = await buildApp(db);
+  const app = await buildApp(db, { webhookSecret: opts.webhookSecret });
   await app.ready();
 
   return { app, db, sqlite };

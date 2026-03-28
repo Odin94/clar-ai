@@ -4,9 +4,17 @@
  * including voice-collected feedback from Data Collection.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createHmac } from "crypto";
 import { eq } from "drizzle-orm";
 import { createTestApp, schema } from "./helpers.js";
 import type { TestApp } from "./helpers.js";
+
+/** Build a valid ElevenLabs-Signature header for a given secret + body */
+function signPayload(secret: string, body: string): string {
+  const ts = Math.floor(Date.now() / 1000);
+  const sig = createHmac("sha256", secret).update(`${ts}.${body}`).digest("hex");
+  return `t=${ts},v0=${sig}`;
+}
 
 let ctx: TestApp;
 
@@ -207,6 +215,69 @@ describe("POST /api/elevenlabs/webhook", () => {
       .from(schema.callTranscripts)
       .where(eq(schema.callTranscripts.callId, convId));
     expect(transcripts).toHaveLength(0);
+  });
+});
+
+describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
+  const WEBHOOK_SECRET = "test-webhook-secret-abc123";
+  let secured: TestApp;
+
+  beforeAll(async () => {
+    secured = await createTestApp({ webhookSecret: WEBHOOK_SECRET });
+  });
+
+  afterAll(() => secured.sqlite.close());
+
+  it("accepts a request with a valid HMAC signature", async () => {
+    const payload = makePayload({ conversationId: "hmac_valid" });
+    const body = JSON.stringify(payload);
+    const res = await secured.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: body,
+      headers: {
+        "content-type": "application/json",
+        "elevenlabs-signature": signPayload(WEBHOOK_SECRET, body),
+      },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("rejects a request with a missing signature header", async () => {
+    const res = await secured.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: "hmac_missing" }),
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json<{ error: string }>().error).toMatch(/signature/i);
+  });
+
+  it("rejects a request with an incorrect signature", async () => {
+    const payload = makePayload({ conversationId: "hmac_wrong" });
+    const body = JSON.stringify(payload);
+    const ts = Math.floor(Date.now() / 1000);
+    const res = await secured.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: body,
+      headers: {
+        "content-type": "application/json",
+        "elevenlabs-signature": `t=${ts},v0=deadbeefdeadbeefdeadbeefdeadbeef`,
+      },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("skips verification when no webhook secret is configured", async () => {
+    // ctx is the app without a secret — requests should pass through
+    const res = await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: "hmac_no_secret" }),
+      // No signature header — should still be accepted
+    });
+    expect(res.statusCode).toBe(200);
   });
 });
 

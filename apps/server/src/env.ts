@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().default("./data/clarai.db"),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_AGENT_ID: z.string().optional(),
+  ELEVENLABS_WEBHOOK_SECRET: z.string().optional(),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.string().default("development"),
 });
@@ -21,6 +22,7 @@ export const env = parsed.success
       DATABASE_URL: process.env["DATABASE_URL"] ?? "./data/clarai.db",
       ELEVENLABS_API_KEY: process.env["ELEVENLABS_API_KEY"],
       ELEVENLABS_AGENT_ID: process.env["ELEVENLABS_AGENT_ID"],
+      ELEVENLABS_WEBHOOK_SECRET: process.env["ELEVENLABS_WEBHOOK_SECRET"],
       PORT: Number(process.env["PORT"] ?? 3001),
       NODE_ENV: process.env["NODE_ENV"] ?? "development",
     };

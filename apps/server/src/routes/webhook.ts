@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyPluginOptions } from "fastify";
+import { createHmac, timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback } from "@clarai/db";
 import { callEventBus } from "../services/eventBus.js";
@@ -32,9 +33,22 @@ interface WebhookPayload {
   };
 }
 
-export async function webhookRoutes(app: FastifyInstance) {
+interface WebhookOptions extends FastifyPluginOptions {
+  webhookSecret?: string;
+}
+
+export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions = {}) {
   // POST /api/elevenlabs/webhook
   app.post("/elevenlabs/webhook", async (request, reply) => {
+    // ── HMAC signature verification ──────────────────────────────────────────
+    const secret = opts.webhookSecret;
+    if (secret) {
+      const sigHeader = request.headers["elevenlabs-signature"] as string | undefined;
+      if (!sigHeader || !verifyWebhookSignature(secret, request.rawBody ?? "", sigHeader)) {
+        return reply.status(401).send({ error: "Invalid webhook signature" });
+      }
+    }
+
     // Respond immediately
     reply.status(200).send({ ok: true });
 
@@ -143,4 +157,43 @@ export async function webhookRoutes(app: FastifyInstance) {
       request.log.error({ err }, "Failed to process webhook payload");
     }
   });
+}
+
+/**
+ * Verify an ElevenLabs webhook signature.
+ *
+ * Header format: `ElevenLabs-Signature: t=<unix_ts>,v0=<hmac_sha256_hex>`
+ * Signed payload: `<unix_ts>.<raw_request_body>`
+ *
+ * @param toleranceSecs  Max age of the timestamp before the request is rejected (default 300 s)
+ */
+function verifyWebhookSignature(
+  secret: string,
+  rawBody: string,
+  signatureHeader: string,
+  toleranceSecs = 300
+): boolean {
+  const parts = signatureHeader.split(",");
+  const tPart = parts.find((p) => p.startsWith("t="));
+  const v0Part = parts.find((p) => p.startsWith("v0="));
+  if (!tPart || !v0Part) return false;
+
+  const timestamp = tPart.slice(2);
+  const receivedSig = v0Part.slice(3);
+
+  // Replay-attack guard: reject stale timestamps
+  const now = Math.floor(Date.now() / 1000);
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(now - ts) > toleranceSecs) return false;
+
+  // Compute expected HMAC-SHA256
+  const signedPayload = `${timestamp}.${rawBody}`;
+  const expected = createHmac("sha256", secret).update(signedPayload).digest("hex");
+
+  // Constant-time comparison to prevent timing attacks
+  try {
+    return timingSafeEqual(Buffer.from(receivedSig, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    return false;
+  }
 }
