@@ -6,6 +6,8 @@ import { feedbackRoutes } from "./routes/feedback.js";
 import { syncRoutes } from "./routes/sync.js";
 import { webhookRoutes } from "./routes/webhook.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
+import { streamRoutes } from "./routes/stream.js";
+import { statsRoutes } from "./routes/stats.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -30,6 +32,8 @@ export async function buildApp(
       await api.register(syncRoutes);
       await api.register(webhookRoutes);
       await api.register(knowledgeRoutes);
+      await api.register(streamRoutes);
+      await api.register(statsRoutes);
     },
     { prefix: "/api" }
   );

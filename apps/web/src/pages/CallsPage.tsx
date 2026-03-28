@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Search, Phone, Clock, ChevronRight } from "lucide-react";
+import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Call } from "@/lib/api";
+import { useCallsStream } from "@/hooks/useCallsStream";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -36,6 +37,9 @@ export function CallsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
+  // Subscribe to SSE for live updates
+  useCallsStream();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["calls", page, search, statusFilter],
     queryFn: () => api.getCalls({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined }),
@@ -62,14 +66,20 @@ export function CallsPage() {
             {data ? `${data.total} total conversations` : "Recent Viktoria conversations"}
           </p>
         </div>
-        <Button
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-          className="bg-dormero-700 hover:bg-dormero-800 text-white"
-        >
-          <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin mr-2" : "mr-2"} />
-          {syncMutation.isPending ? "Syncing…" : "Sync from ElevenLabs"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded-md px-2.5 py-1.5">
+            <Wifi size={12} />
+            Live
+          </div>
+          <Button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="bg-dormero-700 hover:bg-dormero-800 text-white"
+          >
+            <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin mr-2" : "mr-2"} />
+            {syncMutation.isPending ? "Syncing…" : "Sync from ElevenLabs"}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

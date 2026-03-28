@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback } from "@clarai/db";
+import { callEventBus } from "../services/eventBus.js";
 
 interface WebhookPayload {
   event_timestamp: number;
@@ -133,6 +134,11 @@ export async function webhookRoutes(app: FastifyInstance) {
             },
           });
       }
+      // Emit event for SSE clients — do this after all DB writes
+      callEventBus.emit("call", {
+        type: "call:new",
+        conversationId: data.conversation_id,
+      });
     } catch (err) {
       request.log.error({ err }, "Failed to process webhook payload");
     }
