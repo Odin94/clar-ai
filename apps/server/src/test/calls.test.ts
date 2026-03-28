@@ -133,6 +133,61 @@ describe("GET /api/calls", () => {
   });
 });
 
+// ─── GET /api/calls — date range filter ──────────────────────────────────────
+// conv_001 startTime = 1_700_000_100  → 2023-11-14
+// conv_002 startTime = 1_700_000_200  → 2023-11-14
+
+describe("GET /api/calls — date range filter", () => {
+  it("returns both calls when from matches the day", async () => {
+    const res = await ctx.app.inject({
+      method: "GET",
+      url: "/api/calls?from=2023-11-14",
+    });
+    const { calls } = res.json<{ calls: Array<{ id: string }> }>();
+    expect(calls.some((c) => c.id === "conv_001")).toBe(true);
+    expect(calls.some((c) => c.id === "conv_002")).toBe(true);
+  });
+
+  it("returns no calls when from is after both calls", async () => {
+    const res = await ctx.app.inject({
+      method: "GET",
+      url: "/api/calls?from=2023-11-15",
+    });
+    const { calls } = res.json<{ calls: Array<{ id: string }> }>();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("returns no calls when to is before both calls", async () => {
+    const res = await ctx.app.inject({
+      method: "GET",
+      url: "/api/calls?to=2023-11-13",
+    });
+    const { calls } = res.json<{ calls: Array<{ id: string }> }>();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("accepts raw Unix second timestamps", async () => {
+    const res = await ctx.app.inject({
+      method: "GET",
+      // from just before conv_001, to just after conv_001 but before conv_002
+      url: `/api/calls?from=1700000050&to=1700000150`,
+    });
+    const { calls } = res.json<{ calls: Array<{ id: string }> }>();
+    expect(calls.some((c) => c.id === "conv_001")).toBe(true);
+    expect(calls.some((c) => c.id === "conv_002")).toBe(false);
+  });
+
+  it("combines date range with status filter", async () => {
+    const res = await ctx.app.inject({
+      method: "GET",
+      url: "/api/calls?from=2023-11-14&status=success",
+    });
+    const { calls } = res.json<{ calls: Array<{ id: string }> }>();
+    expect(calls.some((c) => c.id === "conv_001")).toBe(true);
+    expect(calls.some((c) => c.id === "conv_002")).toBe(false);
+  });
+});
+
 // ─── GET /api/calls/:id ───────────────────────────────────────────────────────
 
 describe("GET /api/calls/:id", () => {

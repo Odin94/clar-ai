@@ -35,6 +35,8 @@ export function CallsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
@@ -42,8 +44,15 @@ export function CallsPage() {
   useCallsStream();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["calls", page, search, statusFilter],
-    queryFn: () => api.getCalls({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined }),
+    queryKey: ["calls", page, search, statusFilter, fromDate, toDate],
+    queryFn: () => api.getCalls({
+      page,
+      pageSize: PAGE_SIZE,
+      search: search || undefined,
+      status: statusFilter || undefined,
+      from: fromDate || undefined,
+      to: toDate || undefined,
+    }),
   });
 
   const syncMutation = useMutation({
@@ -87,7 +96,7 @@ export function CallsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <Input
@@ -111,6 +120,30 @@ export function CallsPage() {
               {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="font-medium">From</span>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+            className="h-9 w-36 text-xs"
+          />
+          <span className="font-medium">To</span>
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+            className="h-9 w-36 text-xs"
+          />
+          {(fromDate || toDate) && (
+            <button
+              onClick={() => { setFromDate(""); setToDate(""); setPage(1); }}
+              className="text-dormero-700 hover:text-dormero-800 font-medium underline underline-offset-2"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 

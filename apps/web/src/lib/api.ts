@@ -80,12 +80,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getCalls: (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
+  getCalls: (params?: { page?: number; pageSize?: number; status?: string; search?: string; from?: string; to?: string }) => {
     const q = new URLSearchParams();
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     if (params?.status) q.set("status", params.status);
     if (params?.search) q.set("search", params.search);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
     return request<CallsResponse>(`/calls?${q}`);
   },
   getCall: (id: string) => request<CallDetailResponse>(`/calls/${id}`),

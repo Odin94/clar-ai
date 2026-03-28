@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { eq, desc, like, or, sql } from "drizzle-orm";
+import { eq, desc, like, or, sql, gte, lte, and } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback } from "@clarai/db";
 
 export async function callsRoutes(app: FastifyInstance) {
@@ -11,6 +11,8 @@ export async function callsRoutes(app: FastifyInstance) {
       status?: string;
       rating?: string;
       search?: string;
+      from?: string;  // ISO date string or Unix seconds
+      to?: string;    // ISO date string or Unix seconds
     };
 
     const page = Math.max(1, parseInt(query.page ?? "1", 10));
@@ -37,12 +39,22 @@ export async function callsRoutes(app: FastifyInstance) {
         );
       }
 
+      // Date range — accept ISO strings (YYYY-MM-DD) or raw Unix seconds
+      if (query.from) {
+        const fromSecs = parseTimestamp(query.from);
+        if (fromSecs !== null) conditions.push(gte(calls.startTime, fromSecs) as ReturnType<typeof eq>);
+      }
+      if (query.to) {
+        const toSecs = parseTimestamp(query.to, true);
+        if (toSecs !== null) conditions.push(lte(calls.startTime, toSecs) as ReturnType<typeof eq>);
+      }
+
       const whereClause =
         conditions.length === 0
           ? undefined
           : conditions.length === 1
           ? conditions[0]
-          : sql`${conditions.reduce((acc, c) => sql`${acc} AND ${c}`)}`;
+          : and(...conditions) as ReturnType<typeof eq>;
 
       // Query calls with feedback join
       const rows = await db
@@ -125,4 +137,26 @@ export async function callsRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: "Failed to fetch call" });
     }
   });
+}
+
+/**
+ * Parse a timestamp string into Unix seconds.
+ * Accepts:
+ *  - ISO date string: "YYYY-MM-DD"  → start of day (00:00:00 UTC)
+ *  - Raw numeric string: treated as Unix seconds
+ * @param endOfDay  If true and the value is a date string, returns end-of-day (23:59:59 UTC)
+ */
+function parseTimestamp(value: string, endOfDay = false): number | null {
+  const trimmed = value.trim();
+  // ISO date pattern YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const ms = Date.parse(trimmed + "T00:00:00Z");
+    if (isNaN(ms)) return null;
+    const secs = Math.floor(ms / 1000);
+    return endOfDay ? secs + 86399 : secs;
+  }
+  // Raw numeric (Unix seconds)
+  const n = Number(trimmed);
+  if (!isNaN(n) && trimmed !== "") return Math.floor(n);
+  return null;
 }
