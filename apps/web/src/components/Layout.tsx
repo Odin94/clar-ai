@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { PhoneCall } from "lucide-react";
+import { PhoneCall, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -37,6 +37,18 @@ export function Layout({ children }: LayoutProps) {
           >
             <PhoneCall size={14} />
             Call Logs
+          </Link>
+          <Link
+            to="/feedback"
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+              location.pathname === "/feedback"
+                ? "bg-dormero-50 text-dormero-700"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            )}
+          >
+            <Star size={14} />
+            Feedback
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">

@@ -56,6 +56,28 @@ export interface SyncResponse {
   message: string;
 }
 
+export interface FeedbackEntry {
+  id: string;
+  callId: string;
+  rating: number | null;
+  comment: string | null;
+  source: string;
+  createdAt: number;
+  updatedAt: number;
+  call: {
+    startTime: number;
+    hotelMentioned: string | null;
+    summary: string | null;
+  };
+}
+
+export interface FeedbackResponse {
+  feedback: FeedbackEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface StatsResponse {
   totalCalls: number;
   callsToday: number;
@@ -102,6 +124,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  getFeedback: (params?: { page?: number; pageSize?: number; rating?: number; hasComment?: "yes" | "no" }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    if (params?.rating) q.set("rating", String(params.rating));
+    if (params?.hasComment) q.set("hasComment", params.hasComment);
+    return request<FeedbackResponse>(`/feedback?${q}`);
+  },
   sync: () => request<SyncResponse>("/sync", { method: "POST" }),
   getStats: () => request<StatsResponse>("/stats"),
 };
