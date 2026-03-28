@@ -1,0 +1,9 @@
+procs:
+  db-studio:
+    cmd: ["cmd", "/c", "npm run db:studio"]
+
+  server:
+    cmd: ["cmd", "/c", "npm run dev:server"]
+
+  web:
+    cmd: ["cmd", "/c", "npm run dev:web"]

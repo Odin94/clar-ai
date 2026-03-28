@@ -1,0 +1,6 @@
+node_modules
+data/
+oprocs/
+.oprocs.lock
+.claude/
+.documents/

@@ -1,0 +1,227 @@
+/**
+ * Tests for POST /api/elevenlabs/webhook
+ * Verifies that post-call webhook payloads are persisted correctly,
+ * including voice-collected feedback from Data Collection.
+ */
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { eq } from "drizzle-orm";
+import { createTestApp, schema } from "./helpers.js";
+import type { TestApp } from "./helpers.js";
+
+let ctx: TestApp;
+
+beforeAll(async () => {
+  ctx = await createTestApp();
+});
+
+afterAll(() => ctx.sqlite.close());
+
+/** Minimal valid post-call webhook payload */
+function makePayload(overrides: {
+  conversationId?: string;
+  rating?: number | null;
+  comment?: string | null;
+  transcriptEntries?: Array<{ role: string; message: string; time_in_call_secs: number }>;
+} = {}) {
+  const {
+    conversationId = "webhook_conv_001",
+    rating = null,
+    comment = null,
+    transcriptEntries = [
+      { role: "agent", message: "Hello! How can I help?", time_in_call_secs: 0 },
+      { role: "user",  message: "What time is check-in?",  time_in_call_secs: 2.1 },
+      { role: "agent", message: "Check-in is from 15:00.", time_in_call_secs: 4.5 },
+    ],
+  } = overrides;
+
+  return {
+    event_timestamp: Math.floor(Date.now() / 1000),
+    type: "post_call_transcription",
+    data: {
+      conversation_id: conversationId,
+      agent_id: "agent_xyz",
+      status: "done",
+      transcript: transcriptEntries,
+      metadata: {
+        start_time_unix_secs: Math.floor(Date.now() / 1000) - 180,
+        call_duration_secs: 180,
+        cost: { credits: 1.5 },
+        termination_reason: "user_hangup",
+      },
+      analysis: {
+        call_successful: "success",
+        transcript_summary: "Customer asked about check-in time.",
+        data_collection_results: {
+          customer_rating: { value: rating },
+          customer_comment: { value: comment },
+        },
+      },
+    },
+  };
+}
+
+describe("POST /api/elevenlabs/webhook", () => {
+  it("responds 200 immediately", async () => {
+    const res = await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: "wh_200_test" }),
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("persists call data to the database", async () => {
+    const convId = "wh_persist_test";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId }),
+    });
+
+    // Give the async background work time to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.calls)
+      .where(eq(schema.calls.id, convId));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].agentId).toBe("agent_xyz");
+    expect(rows[0].callSuccessful).toBe("success");
+    expect(rows[0].duration).toBe(180);
+    expect(rows[0].costCredits).toBe(1.5);
+    expect(rows[0].summary).toMatch(/check-in/i);
+    expect(rows[0].terminationReason).toBe("user_hangup");
+  });
+
+  it("persists transcript entries in order", async () => {
+    const convId = "wh_transcript_test";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const transcripts = await ctx.db
+      .select()
+      .from(schema.callTranscripts)
+      .where(eq(schema.callTranscripts.callId, convId))
+      .orderBy(schema.callTranscripts.sortOrder);
+
+    expect(transcripts).toHaveLength(3);
+    expect(transcripts[0].role).toBe("agent");
+    expect(transcripts[0].sortOrder).toBe(0);
+    expect(transcripts[2].role).toBe("agent");
+    expect(transcripts[2].message).toMatch(/15:00/);
+  });
+
+  it("persists voice feedback from data collection", async () => {
+    const convId = "wh_feedback_test";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId, rating: 4, comment: "Very helpful!" }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const feedbackRows = await ctx.db
+      .select()
+      .from(schema.callFeedback)
+      .where(eq(schema.callFeedback.callId, convId));
+
+    expect(feedbackRows).toHaveLength(1);
+    expect(feedbackRows[0].rating).toBe(4);
+    expect(feedbackRows[0].comment).toBe("Very helpful!");
+    expect(feedbackRows[0].source).toBe("voice");
+  });
+
+  it("does NOT create feedback when data collection values are null", async () => {
+    const convId = "wh_no_feedback_test";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId, rating: null, comment: null }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const feedbackRows = await ctx.db
+      .select()
+      .from(schema.callFeedback)
+      .where(eq(schema.callFeedback.callId, convId));
+
+    expect(feedbackRows).toHaveLength(0);
+  });
+
+  it("upserts call on duplicate webhook delivery (idempotent)", async () => {
+    const convId = "wh_idempotent_test";
+    const payload = makePayload({ conversationId: convId });
+
+    await ctx.app.inject({ method: "POST", url: "/api/elevenlabs/webhook", payload });
+    await ctx.app.inject({ method: "POST", url: "/api/elevenlabs/webhook", payload });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.calls)
+      .where(eq(schema.calls.id, convId));
+
+    // Should only be one row – upsert, not duplicate insert
+    expect(rows).toHaveLength(1);
+  });
+
+  it("ignores payloads with unknown event type", async () => {
+    const res = await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: { type: "some_other_event", data: {} },
+    });
+    // Should still return 200 (fire-and-forget)
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("handles empty transcript gracefully", async () => {
+    const convId = "wh_empty_transcript";
+    const res = await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId, transcriptEntries: [] }),
+    });
+    expect(res.statusCode).toBe(200);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.calls)
+      .where(eq(schema.calls.id, convId));
+    expect(rows).toHaveLength(1);
+
+    const transcripts = await ctx.db
+      .select()
+      .from(schema.callTranscripts)
+      .where(eq(schema.callTranscripts.callId, convId));
+    expect(transcripts).toHaveLength(0);
+  });
+});
+
+describe("POST /api/elevenlabs/webhook – knowledge route", () => {
+  it("returns answer for a known topic via /api/knowledge/query", async () => {
+    // Sanity check that the knowledge route is mounted and works end-to-end
+    const res = await ctx.app.inject({
+      method: "POST",
+      url: "/api/knowledge/query",
+      payload: { topic: "cancellation" },
+    });
+    // DB is empty of knowledge data in this test suite, so we get the fallback
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ answer: string }>();
+    expect(typeof body.answer).toBe("string");
+    expect(body.answer.length).toBeGreaterThan(0);
+  });
+});
