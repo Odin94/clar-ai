@@ -8,6 +8,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx packages/db/src/seed.ts",
+    "db:generate-kb": "tsx packages/db/src/generateKbDocs.ts",
+    "db:generate-kb-upload": "tsx packages/db/src/generateKbDocs.ts --upload",
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {

@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./generateKbDocs": "./src/generateKbDocs.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
