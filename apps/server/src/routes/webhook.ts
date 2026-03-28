@@ -28,6 +28,8 @@ interface WebhookPayload {
       data_collection_results?: {
         customer_rating?: { value: number | null };
         customer_comment?: { value: string | null };
+        hotel_mentioned?: { value: string | null };
+        complaint_category?: { value: string | null };
       };
     };
   };
@@ -63,6 +65,9 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions =
 
     const db = app.db;
     const now = Date.now();
+    const dcr = data.analysis?.data_collection_results;
+    const hotelMentioned = dcr?.hotel_mentioned?.value ?? null;
+    const complaintCategory = dcr?.complaint_category?.value ?? null;
 
     try {
       // Upsert call
@@ -80,6 +85,8 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions =
           costCredits: data.metadata?.cost?.credits ?? null,
           terminationReason: data.metadata?.termination_reason ?? null,
           syncedAt: now,
+          hotelMentioned,
+          complaintCategory,
         })
         .onConflictDoUpdate({
           target: calls.id,
@@ -93,6 +100,8 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions =
             costCredits: data.metadata?.cost?.credits ?? null,
             terminationReason: data.metadata?.termination_reason ?? null,
             syncedAt: now,
+            hotelMentioned,
+            complaintCategory,
           },
         });
 
@@ -122,7 +131,6 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions =
       }
 
       // Upsert feedback from data collection
-      const dcr = data.analysis?.data_collection_results;
       const rating = dcr?.customer_rating?.value ?? null;
       const comment = dcr?.customer_comment?.value ?? null;
 

@@ -155,6 +155,24 @@ export function CallDetailPage() {
         </Card>
       )}
 
+      {/* Data Collection results */}
+      {!isLoading && (call?.hotelMentioned || call?.complaintCategory) && (
+        <div className="flex flex-wrap gap-3">
+          {call.hotelMentioned && (
+            <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-md px-3 py-1.5 text-xs text-blue-700">
+              <span className="font-semibold">Hotel:</span>
+              <span>{call.hotelMentioned}</span>
+            </div>
+          )}
+          {call.complaintCategory && (
+            <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-md px-3 py-1.5 text-xs text-red-700">
+              <span className="font-semibold">Complaint:</span>
+              <span>{call.complaintCategory}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Transcript */}
         <div className="lg:col-span-2 space-y-3">

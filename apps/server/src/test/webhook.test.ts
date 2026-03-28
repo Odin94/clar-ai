@@ -29,12 +29,16 @@ function makePayload(overrides: {
   conversationId?: string;
   rating?: number | null;
   comment?: string | null;
+  hotelMentioned?: string | null;
+  complaintCategory?: string | null;
   transcriptEntries?: Array<{ role: string; message: string; time_in_call_secs: number }>;
 } = {}) {
   const {
     conversationId = "webhook_conv_001",
     rating = null,
     comment = null,
+    hotelMentioned = null,
+    complaintCategory = null,
     transcriptEntries = [
       { role: "agent", message: "Hello! How can I help?", time_in_call_secs: 0 },
       { role: "user",  message: "What time is check-in?",  time_in_call_secs: 2.1 },
@@ -62,6 +66,8 @@ function makePayload(overrides: {
         data_collection_results: {
           customer_rating: { value: rating },
           customer_comment: { value: comment },
+          hotel_mentioned: { value: hotelMentioned },
+          complaint_category: { value: complaintCategory },
         },
       },
     },
@@ -163,6 +169,50 @@ describe("POST /api/elevenlabs/webhook", () => {
       .where(eq(schema.callFeedback.callId, convId));
 
     expect(feedbackRows).toHaveLength(0);
+  });
+
+  it("persists hotel_mentioned and complaint_category from data collection", async () => {
+    const convId = "wh_datacollection_test";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({
+        conversationId: convId,
+        hotelMentioned: "Dormero Hotel Coburg",
+        complaintCategory: "noise",
+      }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.calls)
+      .where(eq(schema.calls.id, convId));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].hotelMentioned).toBe("Dormero Hotel Coburg");
+    expect(rows[0].complaintCategory).toBe("noise");
+  });
+
+  it("stores null for hotel_mentioned and complaint_category when not provided", async () => {
+    const convId = "wh_datacollection_null";
+    await ctx.app.inject({
+      method: "POST",
+      url: "/api/elevenlabs/webhook",
+      payload: makePayload({ conversationId: convId }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await ctx.db
+      .select()
+      .from(schema.calls)
+      .where(eq(schema.calls.id, convId));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].hotelMentioned).toBeNull();
+    expect(rows[0].complaintCategory).toBeNull();
   });
 
   it("upserts call on duplicate webhook delivery (idempotent)", async () => {

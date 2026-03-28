@@ -69,7 +69,9 @@ CREATE TABLE IF NOT EXISTS calls (
   message_count INTEGER,
   cost_credits REAL,
   termination_reason TEXT,
-  synced_at INTEGER
+  synced_at INTEGER,
+  hotel_mentioned TEXT,
+  complaint_category TEXT
 );
 CREATE TABLE IF NOT EXISTS call_transcripts (
   id TEXT PRIMARY KEY,

@@ -13,6 +13,8 @@ export interface Call {
   costCredits: number | null;
   terminationReason: string | null;
   syncedAt: number | null;
+  hotelMentioned: string | null;
+  complaintCategory: string | null;
   feedback?: Feedback | null;
 }
 

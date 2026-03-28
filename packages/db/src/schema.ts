@@ -57,6 +57,8 @@ export const calls = sqliteTable("calls", {
   costCredits: real("cost_credits"),
   terminationReason: text("termination_reason"),
   syncedAt: integer("synced_at"),
+  hotelMentioned: text("hotel_mentioned"),     // from Data Collection
+  complaintCategory: text("complaint_category"), // from Data Collection
 });
 
 export const callTranscripts = sqliteTable("call_transcripts", {
