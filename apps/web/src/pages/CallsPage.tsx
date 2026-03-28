@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi } from "lucide-react";
+import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Call } from "@/lib/api";
 import { useCallsStream } from "@/hooks/useCallsStream";
@@ -30,6 +30,15 @@ function formatDate(unix: number): string {
   });
 }
 
+type SortKey = "startTime" | "duration" | "callSuccessful" | "summary" | "rating" | "messageCount";
+
+function SortIcon({ col, sortBy, sortDir }: { col: SortKey; sortBy: SortKey; sortDir: "asc" | "desc" }) {
+  if (col !== sortBy) return <ChevronsUpDown size={12} className="ml-1 text-gray-300 inline-block" />;
+  return sortDir === "asc"
+    ? <ChevronUp size={12} className="ml-1 text-dormero-600 inline-block" />
+    : <ChevronDown size={12} className="ml-1 text-dormero-600 inline-block" />;
+}
+
 export function CallsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -38,13 +47,26 @@ export function CallsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortKey>("startTime");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const PAGE_SIZE = 20;
+
+  function handleSort(col: SortKey) {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
+    }
+    setPage(1);
+  }
 
   // Subscribe to SSE for live updates
   useCallsStream();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["calls", page, search, statusFilter, fromDate, toDate],
+    queryKey: ["calls", page, search, statusFilter, fromDate, toDate, sortBy, sortDir],
+    placeholderData: keepPreviousData,
     queryFn: () => api.getCalls({
       page,
       pageSize: PAGE_SIZE,
@@ -52,6 +74,8 @@ export function CallsPage() {
       status: statusFilter || undefined,
       from: fromDate || undefined,
       to: toDate || undefined,
+      sortBy,
+      sortDir,
     }),
   });
 
@@ -153,12 +177,25 @@ export function CallsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date &amp; Time</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Duration</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Summary</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rating</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Messages</th>
+                {(
+                  [
+                    { col: "startTime" as SortKey, label: "Date & Time" },
+                    { col: "duration" as SortKey, label: "Duration" },
+                    { col: "callSuccessful" as SortKey, label: "Status" },
+                    { col: "summary" as SortKey, label: "Summary" },
+                    { col: "rating" as SortKey, label: "Rating" },
+                    { col: "messageCount" as SortKey, label: "Messages" },
+                  ] as const
+                ).map(({ col, label }) => (
+                  <th
+                    key={col}
+                    onClick={() => handleSort(col)}
+                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                  >
+                    {label}
+                    <SortIcon col={col} sortBy={sortBy} sortDir={sortDir} />
+                  </th>
+                ))}
                 <th className="px-4 py-3" />
               </tr>
             </thead>

@@ -84,7 +84,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getCalls: (params?: { page?: number; pageSize?: number; status?: string; search?: string; from?: string; to?: string }) => {
+  getCalls: (params?: { page?: number; pageSize?: number; status?: string; search?: string; from?: string; to?: string; sortBy?: string; sortDir?: "asc" | "desc" }) => {
     const q = new URLSearchParams();
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
@@ -92,6 +92,8 @@ export const api = {
     if (params?.search) q.set("search", params.search);
     if (params?.from) q.set("from", params.from);
     if (params?.to) q.set("to", params.to);
+    if (params?.sortBy) q.set("sortBy", params.sortBy);
+    if (params?.sortDir) q.set("sortDir", params.sortDir);
     return request<CallsResponse>(`/calls?${q}`);
   },
   getCall: (id: string) => request<CallDetailResponse>(`/calls/${id}`),

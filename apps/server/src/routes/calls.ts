@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { eq, desc, like, or, sql, gte, lte, and } from "drizzle-orm";
+import { eq, desc, asc, like, or, sql, gte, lte, and } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback } from "@clarai/db";
 
 export async function callsRoutes(app: FastifyInstance) {
@@ -13,6 +13,8 @@ export async function callsRoutes(app: FastifyInstance) {
       search?: string;
       from?: string;  // ISO date string or Unix seconds
       to?: string;    // ISO date string or Unix seconds
+      sortBy?: string;  // column name to sort by
+      sortDir?: string; // "asc" | "desc"
     };
 
     const page = Math.max(1, parseInt(query.page ?? "1", 10));
@@ -56,6 +58,19 @@ export async function callsRoutes(app: FastifyInstance) {
           ? conditions[0]
           : and(...conditions) as ReturnType<typeof eq>;
 
+      // Resolve sort column and direction
+      const sortDir = query.sortDir === "asc" ? "asc" : "desc";
+      const sortColMap: Record<string, Parameters<typeof asc>[0]> = {
+        startTime: calls.startTime,
+        duration: calls.duration,
+        callSuccessful: calls.callSuccessful,
+        summary: calls.summary,
+        messageCount: calls.messageCount,
+        rating: callFeedback.rating,
+      };
+      const sortCol = sortColMap[query.sortBy ?? "startTime"] ?? calls.startTime;
+      const orderExpr = sortDir === "asc" ? asc(sortCol) : desc(sortCol);
+
       const rows = await db
         .select({
           id: calls.id,
@@ -82,7 +97,7 @@ export async function callsRoutes(app: FastifyInstance) {
         .from(calls)
         .leftJoin(callFeedback, eq(calls.id, callFeedback.callId))
         .where(whereClause)
-        .orderBy(desc(calls.startTime))
+        .orderBy(orderExpr)
         .limit(pageSize)
         .offset(offset);
 
