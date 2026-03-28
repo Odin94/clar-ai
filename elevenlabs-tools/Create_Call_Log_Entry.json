@@ -17,18 +17,12 @@
       "id": "body",
       "type": "object",
       "description": "Webhook payload sent at the end of a call",
-      "required": true,
-      "value_type": "llm_prompt",
-      "dynamic_variable": "",
-      "constant_value": "",
-      "enum": null,
-      "is_system_provided": false,
       "properties": [
         {
           "id": "type",
           "type": "string",
-          "description": "Event type. Must be \"post_call_transcription\" — payloads with any other value are ignored by the server.",
           "value_type": "llm_prompt",
+          "description": "Event type. Must be \"post_call_transcription\" — payloads with any other value are ignored by the server.",
           "dynamic_variable": "",
           "constant_value": "",
           "enum": null,
@@ -39,20 +33,14 @@
           "id": "data",
           "type": "object",
           "description": "Call data payload",
-          "value_type": "llm_prompt",
-          "dynamic_variable": "",
-          "constant_value": "",
-          "enum": null,
-          "is_system_provided": false,
-          "required": true,
           "properties": [
             {
               "id": "conversation_id",
               "type": "string",
+              "value_type": "dynamic_variable",
               "description": "",
-              "value_type": "constant",
-              "dynamic_variable": "",
-              "constant_value": "{{system__conversation_id}}",
+              "dynamic_variable": "system__conversation_id",
+              "constant_value": "",
               "enum": null,
               "is_system_provided": false,
               "required": false
@@ -60,10 +48,10 @@
             {
               "id": "agent_id",
               "type": "string",
+              "value_type": "dynamic_variable",
               "description": "",
-              "value_type": "constant",
-              "dynamic_variable": "",
-              "constant_value": "{{system__agent_id}}",
+              "dynamic_variable": "system__agent_id",
+              "constant_value": "",
               "enum": null,
               "is_system_provided": false,
               "required": false
@@ -71,8 +59,8 @@
             {
               "id": "status",
               "type": "string",
-              "description": "Status of the call. Expected values: \"done\", \"failed\", \"in-progress\". Defaults to \"done\" if omitted.",
               "value_type": "llm_prompt",
+              "description": "Status of the call. Expected values: \"done\", \"failed\", \"in-progress\". Defaults to \"done\" if omitted.",
               "dynamic_variable": "",
               "constant_value": "",
               "enum": null,
@@ -83,21 +71,16 @@
               "id": "transcript",
               "type": "array",
               "description": "Array of transcript entries for the call",
-              "value_type": "llm_prompt",
-              "dynamic_variable": "",
-              "constant_value": "",
-              "enum": null,
-              "is_system_provided": false,
-              "required": true,
               "items": {
+                "id": "transcript_item",
                 "type": "object",
                 "description": "A single transcript entry",
                 "properties": [
                   {
                     "id": "role",
                     "type": "string",
-                    "description": "Speaker role: agent or user",
                     "value_type": "llm_prompt",
+                    "description": "Speaker role: agent or user",
                     "dynamic_variable": "",
                     "constant_value": "",
                     "enum": null,
@@ -107,8 +90,8 @@
                   {
                     "id": "message",
                     "type": "string",
-                    "description": "Spoken message content",
                     "value_type": "llm_prompt",
+                    "description": "Spoken message content",
                     "dynamic_variable": "",
                     "constant_value": "",
                     "enum": null,
@@ -118,33 +101,31 @@
                   {
                     "id": "time_in_call_secs",
                     "type": "number",
-                    "description": "Timestamp of the message in seconds from call start",
                     "value_type": "llm_prompt",
+                    "description": "Timestamp of the message in seconds from call start",
                     "dynamic_variable": "",
                     "constant_value": "",
                     "enum": null,
                     "is_system_provided": false,
                     "required": true
                   }
-                ]
-              }
+                ],
+                "required": false,
+                "value_type": "llm_prompt"
+              },
+              "required": true,
+              "value_type": "llm_prompt"
             },
             {
               "id": "metadata",
               "type": "object",
               "description": "Call metadata",
-              "value_type": "llm_prompt",
-              "dynamic_variable": "",
-              "constant_value": "",
-              "enum": null,
-              "is_system_provided": false,
-              "required": true,
               "properties": [
                 {
                   "id": "call_duration_secs",
                   "type": "number",
-                  "description": "Duration of the call in seconds",
                   "value_type": "llm_prompt",
+                  "description": "Duration of the call in seconds",
                   "dynamic_variable": "",
                   "constant_value": "",
                   "enum": null,
@@ -155,55 +136,47 @@
                   "id": "cost",
                   "type": "object",
                   "description": "Cost breakdown for the call",
-                  "value_type": "llm_prompt",
-                  "dynamic_variable": "",
-                  "constant_value": "",
-                  "enum": null,
-                  "is_system_provided": false,
-                  "required": true,
                   "properties": [
                     {
                       "id": "credits",
                       "type": "number",
-                      "description": "Number of credits consumed",
                       "value_type": "llm_prompt",
+                      "description": "Number of credits consumed",
                       "dynamic_variable": "",
                       "constant_value": "",
                       "enum": null,
                       "is_system_provided": false,
                       "required": true
                     }
-                  ]
+                  ],
+                  "required": true,
+                  "value_type": "llm_prompt"
                 },
                 {
                   "id": "termination_reason",
                   "type": "string",
-                  "description": "Reason the call was terminated",
                   "value_type": "llm_prompt",
+                  "description": "Reason the call was terminated",
                   "dynamic_variable": "",
                   "constant_value": "",
                   "enum": null,
                   "is_system_provided": false,
                   "required": true
                 }
-              ]
+              ],
+              "required": true,
+              "value_type": "llm_prompt"
             },
             {
               "id": "analysis",
               "type": "object",
               "description": "Post-call analysis results",
-              "value_type": "llm_prompt",
-              "dynamic_variable": "",
-              "constant_value": "",
-              "enum": null,
-              "is_system_provided": false,
-              "required": true,
               "properties": [
                 {
                   "id": "call_successful",
                   "type": "string",
-                  "description": "Whether the call was successful (success, failure, unknown)",
                   "value_type": "llm_prompt",
+                  "description": "Whether the call was successful (success, failure, unknown)",
                   "dynamic_variable": "",
                   "constant_value": "",
                   "enum": null,
@@ -213,8 +186,8 @@
                 {
                   "id": "transcript_summary",
                   "type": "string",
-                  "description": "Summary of the call transcript",
                   "value_type": "llm_prompt",
+                  "description": "Summary of the call transcript",
                   "dynamic_variable": "",
                   "constant_value": "",
                   "enum": null,
@@ -225,116 +198,102 @@
                   "id": "data_collection_results",
                   "type": "object",
                   "description": "Collected data from the call, including customer feedback",
-                  "value_type": "llm_prompt",
-                  "dynamic_variable": "",
-                  "constant_value": "",
-                  "enum": null,
-                  "is_system_provided": false,
-                  "required": false,
                   "properties": [
                     {
                       "id": "customer_rating",
                       "type": "object",
                       "description": "Customer satisfaction rating",
-                      "value_type": "llm_prompt",
-                      "dynamic_variable": "",
-                      "constant_value": "",
-                      "enum": null,
-                      "is_system_provided": false,
-                      "required": false,
                       "properties": [
                         {
                           "id": "value",
                           "type": "number",
-                          "description": "Rating value (e.g. 1-5), or null if not provided",
                           "value_type": "llm_prompt",
+                          "description": "Rating value (e.g. 1-5), or null if not provided",
                           "dynamic_variable": "",
                           "constant_value": "",
                           "enum": null,
                           "is_system_provided": false,
                           "required": false
                         }
-                      ]
+                      ],
+                      "required": false,
+                      "value_type": "llm_prompt"
                     },
                     {
                       "id": "customer_comment",
                       "type": "object",
                       "description": "Freeform customer comment",
-                      "value_type": "llm_prompt",
-                      "dynamic_variable": "",
-                      "constant_value": "",
-                      "enum": null,
-                      "is_system_provided": false,
-                      "required": false,
                       "properties": [
                         {
                           "id": "value",
                           "type": "string",
-                          "description": "Comment text, or null if not provided",
                           "value_type": "llm_prompt",
+                          "description": "Comment text, or null if not provided",
                           "dynamic_variable": "",
                           "constant_value": "",
                           "enum": null,
                           "is_system_provided": false,
                           "required": false
                         }
-                      ]
+                      ],
+                      "required": false,
+                      "value_type": "llm_prompt"
                     },
                     {
                       "id": "hotel_mentioned",
                       "type": "object",
                       "description": "Hotel name mentioned during the call",
-                      "value_type": "llm_prompt",
-                      "dynamic_variable": "",
-                      "constant_value": "",
-                      "enum": null,
-                      "is_system_provided": false,
-                      "required": false,
                       "properties": [
                         {
                           "id": "value",
                           "type": "string",
-                          "description": "Hotel name, or null if none mentioned",
                           "value_type": "llm_prompt",
+                          "description": "Hotel name, or null if none mentioned",
                           "dynamic_variable": "",
                           "constant_value": "",
                           "enum": null,
                           "is_system_provided": false,
                           "required": false
                         }
-                      ]
+                      ],
+                      "required": false,
+                      "value_type": "llm_prompt"
                     },
                     {
                       "id": "complaint_category",
                       "type": "object",
                       "description": "Category of the complaint raised during the call",
-                      "value_type": "llm_prompt",
-                      "dynamic_variable": "",
-                      "constant_value": "",
-                      "enum": null,
-                      "is_system_provided": false,
-                      "required": false,
                       "properties": [
                         {
                           "id": "value",
                           "type": "string",
-                          "description": "Complaint category, or null if not applicable",
                           "value_type": "llm_prompt",
+                          "description": "Complaint category, or null if not applicable",
                           "dynamic_variable": "",
                           "constant_value": "",
                           "enum": null,
                           "is_system_provided": false,
                           "required": false
                         }
-                      ]
+                      ],
+                      "required": false,
+                      "value_type": "llm_prompt"
                     }
-                  ]
+                  ],
+                  "required": false,
+                  "value_type": "llm_prompt"
                 }
-              ]
+              ],
+              "required": true,
+              "value_type": "llm_prompt"
             }
-          ]
+          ],
+          "required": true,
+          "value_type": "llm_prompt"
         }
-      ]
+      ],
+      "required": false,
+      "value_type": "llm_prompt"
     },
     "request_headers": [
       {
