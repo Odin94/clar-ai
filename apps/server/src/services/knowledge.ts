@@ -75,6 +75,13 @@ export async function queryKnowledge(
       )
       .limit(1);
     hotel = results[0];
+
+    // If the caller asked about a specific hotel but we have no record of it,
+    // return early rather than falling through and serving another hotel's data.
+    if (!hotel) {
+      console.warn(`[knowledge] FALLBACK – hotel not found: hotel_name="${hotelName}", topic="${topic}"`);
+      return `I'm sorry, I don't have information for "${hotelName}" in our knowledge base. Please contact that hotel directly for assistance.`;
+    }
   }
 
   const parts: string[] = [];
@@ -183,10 +190,13 @@ export async function queryKnowledge(
   // ── Fallback ──────────────────────────────────────────────────────
   if (parts.length === 0) {
     const hotelLabel = hotel ? hotel.name : "our hotel";
+    console.warn(`[knowledge] FALLBACK – no data found: hotel="${hotelLabel}", topic="${topic}"`);
     return `I'm sorry, I don't have specific information about "${topic}" for ${hotelLabel}. Please contact the front desk directly for assistance.`;
   }
 
   // Deduplicate identical parts (guard against duplicate DB rows), cap at 3 for voice brevity
   const uniqueParts = parts.filter((p, i, arr) => arr.indexOf(p) === i);
-  return uniqueParts.slice(0, 3).join(" ").trim();
+  const answer = uniqueParts.slice(0, 3).join(" ").trim();
+  console.log(`[knowledge] OK – hotel="${hotel?.name ?? "any"}", topic="${topic}", answer="${answer}"`);
+  return answer;
 }

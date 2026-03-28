@@ -108,10 +108,18 @@ describe("queryKnowledge – fallback", () => {
     expect(answer).toMatch(/don't have specific information|contact/i);
   });
 
-  it("returns fallback when hotel name doesn't match", async () => {
+  it("returns fallback when hotel name doesn't match — never leaks another hotel's data", async () => {
     const answer = await queryKnowledge(ctx.db, "Nonexistent Hotel XYZ", "parking");
-    // No hotel match → no facilities → fallback
-    expect(typeof answer).toBe("string");
-    expect(answer.length).toBeGreaterThan(0);
+    // Must not return Coburg's parking data
+    expect(answer).not.toMatch(/€12/);
+    expect(answer).not.toMatch(/underground/i);
+    expect(answer).toMatch(/don't have information|contact/i);
+  });
+
+  it("does not return Coburg data when asking about an unknown hotel", async () => {
+    const answer = await queryKnowledge(ctx.db, "Kudamm Berlin", "parking");
+    expect(answer).not.toMatch(/€12/);
+    expect(answer).not.toMatch(/underground/i);
+    expect(answer).toMatch(/don't have information|contact/i);
   });
 });

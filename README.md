@@ -136,7 +136,7 @@ npm test --workspace=apps/server
 | `POST` | `/api/calls/:id/feedback` | Save rating (1–5) and/or comment |
 | `POST` | `/api/sync` | Pull latest conversations from ElevenLabs |
 | `POST` | `/api/knowledge/query` | Agent webhook tool – hotel knowledge lookup |
-| `POST` | `/api/elevenlabs/webhook` | ElevenLabs post-call webhook receiver |
+| `POST` | `/agent-api/v1/callLogEntry` | ElevenLabs post-call webhook receiver |
 
 ---
 
@@ -178,4 +178,6 @@ Zero infrastructure for a POC. Drizzle ORM makes the migration to Postgres trivi
 * Create `backend_api_key` and `base_url` env vars in https://elevenlabs.io/app/developers/environment-variables
   * `backend_api_key` you can define yourself in `apps/server/.env`
   * `base_url` you get from `ngrok`, but note that this env var should NOT include `https://`
+* Create an agent with a system prompt of your choice
 * Create webhook tools from `./elevenlabs-tools` json files
+* Add the tools to your agent

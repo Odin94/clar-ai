@@ -2,7 +2,7 @@
   "type": "webhook",
   "name": "Query_Knowledge_Base",
   "description": "Look up hotel-specific information from the knowledge base during a call. Use this to answer guest questions about hotel facilities, policies, room types, check-in/out times, etc. Provide the topic the guest is asking about, and optionally the hotel name if known.",
-  "disable_interruptions": false,
+  "disable_interruptions": true,
   "force_pre_tool_speech": "auto",
   "tool_call_sound": null,
   "tool_call_sound_behavior": "auto",

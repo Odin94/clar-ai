@@ -60,18 +60,24 @@
             {
               "id": "conversation_id",
               "type": "string",
+              "description": "",
               "value_type": "constant",
+              "dynamic_variable": "",
+              "constant_value": "",
               "enum": null,
               "is_system_provided": true,
-              "required": true
+              "required": false
             },
             {
               "id": "agent_id",
               "type": "string",
+              "description": "",
               "value_type": "constant",
+              "dynamic_variable": "",
+              "constant_value": "",
               "enum": null,
               "is_system_provided": true,
-              "required": true
+              "required": false
             },
             {
               "id": "status",
