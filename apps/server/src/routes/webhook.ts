@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback } from "@clarai/db";
 import { callEventBus } from "../services/eventBus.js";
 
-interface WebhookPayload {
+type WebhookPayload = {
   event_timestamp: number;
   type: string;
   data: {
@@ -40,8 +40,8 @@ interface WebhookOptions extends FastifyPluginOptions {
 }
 
 export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions = {}) {
-  // POST /api/elevenlabs/webhook
-  app.post("/elevenlabs/webhook", async (request, reply) => {
+  // POST /api/agent-api/v1/callLogEntry
+  app.post("/agent-api/v1/callLogEntry", async (request, reply) => {
     // ── HMAC signature verification ──────────────────────────────────────────
     const secret = opts.webhookSecret;
     if (secret) {

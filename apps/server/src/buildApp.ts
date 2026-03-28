@@ -8,6 +8,7 @@ import { webhookRoutes } from "./routes/webhook.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
 import { streamRoutes } from "./routes/stream.js";
 import { statsRoutes } from "./routes/stats.js";
+import { env } from "./env.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -20,7 +21,7 @@ declare module "fastify" {
 
 export async function buildApp(
   db: Awaited<ReturnType<typeof getDb>>,
-  opts: { logger?: boolean; webhookSecret?: string } = {}
+  opts: { logger?: boolean; webhookSecret?: string; apiKey?: string } = {}
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
 
@@ -44,8 +45,20 @@ export async function buildApp(
 
   await app.register(cors, { origin: "*" });
 
+  const validApiKey = opts.apiKey ?? env.BACKEND_VALID_API_KEY;
+
   await app.register(
     async (api) => {
+      api.addHook("onRequest", async (request, reply) => {
+        const provided = request.headers["x-api-key"];
+        if (!provided) {
+          return reply.code(401).send({ error: "Unauthorized" });
+        }
+        if (!validApiKey || provided !== validApiKey) {
+          return reply.code(403).send({ error: "Forbidden" });
+        }
+      });
+
       await api.register(callsRoutes);
       await api.register(feedbackRoutes);
       await api.register(syncRoutes);

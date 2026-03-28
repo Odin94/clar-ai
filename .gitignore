@@ -4,3 +4,5 @@ oprocs/
 .oprocs.lock
 .claude/
 .documents/
+
+.env

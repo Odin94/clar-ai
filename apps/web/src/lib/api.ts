@@ -1,4 +1,5 @@
 const BASE = "/api";
+const API_KEY = import.meta.env.VITE_BACKEND_API_KEY as string | undefined;
 
 // Types
 export interface Call {
@@ -71,6 +72,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: {
       ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...(API_KEY ? { "x-api-key": API_KEY } : {}),
       ...options?.headers,
     },
   });

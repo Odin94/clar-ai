@@ -3,7 +3,7 @@
  * We test the event bus directly (unit) and verify the webhook emits on it.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createTestApp, seedCall, schema } from "./helpers.js";
+import { createTestApp, seedCall, schema, authHeaders } from "./helpers.js";
 import { callEventBus } from "../services/eventBus.js";
 import type { TestApp } from "./helpers.js";
 import type { CallEvent } from "../services/eventBus.js";
@@ -76,7 +76,8 @@ describe("webhook → event bus integration", () => {
 
       ctx.app.inject({
         method: "POST",
-        url: "/api/elevenlabs/webhook",
+        url: "/api/agent-api/v1/callLogEntry",
+        headers: authHeaders,
         payload: {
           event_timestamp: Math.floor(Date.now() / 1000),
           type: "post_call_transcription",

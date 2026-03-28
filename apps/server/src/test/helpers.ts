@@ -92,9 +92,11 @@ CREATE TABLE IF NOT EXISTS call_feedback (
 );
 `;
 
+export const TEST_API_KEY = "test-api-key-secret";
+
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 
-export async function createTestApp(opts: { webhookSecret?: string } = {}) {
+export async function createTestApp(opts: { webhookSecret?: string; apiKey?: string } = {}) {
   // In-memory SQLite – isolated per test suite
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
@@ -105,11 +107,17 @@ export async function createTestApp(opts: { webhookSecret?: string } = {}) {
     ReturnType<typeof import("@clarai/db").getDb>
   >;
 
-  const app = await buildApp(db, { webhookSecret: opts.webhookSecret });
+  const app = await buildApp(db, {
+    webhookSecret: opts.webhookSecret,
+    apiKey: opts.apiKey ?? TEST_API_KEY,
+  });
   await app.ready();
 
   return { app, db, sqlite };
 }
+
+/** Default headers with API key authentication for test requests */
+export const authHeaders = { "x-api-key": TEST_API_KEY } as const;
 
 /** Seed a minimal call row for use in route tests */
 export function seedCall(

@@ -1,12 +1,12 @@
 /**
- * Tests for POST /api/elevenlabs/webhook
+ * Tests for POST /api/agent-api/v1/callLogEntry
  * Verifies that post-call webhook payloads are persisted correctly,
  * including voice-collected feedback from Data Collection.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createHmac } from "crypto";
 import { eq } from "drizzle-orm";
-import { createTestApp, schema } from "./helpers.js";
+import { createTestApp, schema, authHeaders } from "./helpers.js";
 import type { TestApp } from "./helpers.js";
 
 /** Build a valid ElevenLabs-Signature header for a given secret + body */
@@ -74,11 +74,12 @@ function makePayload(overrides: {
   };
 }
 
-describe("POST /api/elevenlabs/webhook", () => {
+describe("POST /api/agent-api/v1/callLogEntry", () => {
   it("responds 200 immediately", async () => {
     const res = await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: "wh_200_test" }),
     });
     expect(res.statusCode).toBe(200);
@@ -88,7 +89,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_persist_test";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId }),
     });
 
@@ -113,7 +115,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_transcript_test";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId }),
     });
 
@@ -136,7 +139,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_feedback_test";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId, rating: 4, comment: "Very helpful!" }),
     });
 
@@ -157,7 +161,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_no_feedback_test";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId, rating: null, comment: null }),
     });
 
@@ -175,7 +180,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_datacollection_test";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({
         conversationId: convId,
         hotelMentioned: "Dormero Hotel Coburg",
@@ -199,7 +205,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_datacollection_null";
     await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId }),
     });
 
@@ -219,8 +226,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_idempotent_test";
     const payload = makePayload({ conversationId: convId });
 
-    await ctx.app.inject({ method: "POST", url: "/api/elevenlabs/webhook", payload });
-    await ctx.app.inject({ method: "POST", url: "/api/elevenlabs/webhook", payload });
+    await ctx.app.inject({ method: "POST", url: "/api/agent-api/v1/callLogEntry", headers: authHeaders, payload });
+    await ctx.app.inject({ method: "POST", url: "/api/agent-api/v1/callLogEntry", headers: authHeaders, payload });
 
     await new Promise((r) => setTimeout(r, 50));
 
@@ -236,7 +243,8 @@ describe("POST /api/elevenlabs/webhook", () => {
   it("ignores payloads with unknown event type", async () => {
     const res = await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: { type: "some_other_event", data: {} },
     });
     // Should still return 200 (fire-and-forget)
@@ -247,7 +255,8 @@ describe("POST /api/elevenlabs/webhook", () => {
     const convId = "wh_empty_transcript";
     const res = await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: convId, transcriptEntries: [] }),
     });
     expect(res.statusCode).toBe(200);
@@ -268,7 +277,7 @@ describe("POST /api/elevenlabs/webhook", () => {
   });
 });
 
-describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
+describe("POST /api/agent-api/v1/callLogEntry – HMAC signature verification", () => {
   const WEBHOOK_SECRET = "test-webhook-secret-abc123";
   let secured: TestApp;
 
@@ -283,9 +292,10 @@ describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
     const body = JSON.stringify(payload);
     const res = await secured.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
       payload: body,
       headers: {
+        ...authHeaders,
         "content-type": "application/json",
         "elevenlabs-signature": signPayload(WEBHOOK_SECRET, body),
       },
@@ -296,7 +306,8 @@ describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
   it("rejects a request with a missing signature header", async () => {
     const res = await secured.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: "hmac_missing" }),
     });
     expect(res.statusCode).toBe(401);
@@ -309,9 +320,10 @@ describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
     const ts = Math.floor(Date.now() / 1000);
     const res = await secured.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
       payload: body,
       headers: {
+        ...authHeaders,
         "content-type": "application/json",
         "elevenlabs-signature": `t=${ts},v0=deadbeefdeadbeefdeadbeefdeadbeef`,
       },
@@ -323,7 +335,8 @@ describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
     // ctx is the app without a secret — requests should pass through
     const res = await ctx.app.inject({
       method: "POST",
-      url: "/api/elevenlabs/webhook",
+      url: "/api/agent-api/v1/callLogEntry",
+      headers: authHeaders,
       payload: makePayload({ conversationId: "hmac_no_secret" }),
       // No signature header — should still be accepted
     });
@@ -331,12 +344,13 @@ describe("POST /api/elevenlabs/webhook – HMAC signature verification", () => {
   });
 });
 
-describe("POST /api/elevenlabs/webhook – knowledge route", () => {
+describe("POST /api/agent-api/v1/callLogEntry – knowledge route", () => {
   it("returns answer for a known topic via /api/knowledge/query", async () => {
     // Sanity check that the knowledge route is mounted and works end-to-end
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/knowledge/query",
+      headers: authHeaders,
       payload: { topic: "cancellation" },
     });
     // DB is empty of knowledge data in this test suite, so we get the fallback

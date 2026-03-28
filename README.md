@@ -171,3 +171,11 @@ Zero infrastructure for a POC. Drizzle ORM makes the migration to Postgres trivi
 | Frontend | React + Vite + Tailwind + shadcn/ui | Fast iteration, consistent design system |
 | Data fetching | TanStack Query | Caching, background refetch, mutation state |
 | Testing | Vitest + Fastify inject() | In-process HTTP tests, no network overhead |
+
+
+## Elevenlabs setup
+* After running backend, expose with `ngrok http 3001` (assuming you didn't change the port)
+* Create `backend_api_key` and `base_url` env vars in https://elevenlabs.io/app/developers/environment-variables
+  * `backend_api_key` you can define yourself in `apps/server/.env`
+  * `base_url` you get from `ngrok`, but note that this env var should NOT include `https://`
+* Create webhook tools from `./elevenlabs-tools` json files

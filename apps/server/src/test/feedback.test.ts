@@ -3,7 +3,7 @@
  * Covers create, update (upsert), validation, and 404 for missing calls.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestApp, seedCall } from "./helpers.js";
+import { createTestApp, seedCall, authHeaders } from "./helpers.js";
 import type { TestApp } from "./helpers.js";
 
 let ctx: TestApp;
@@ -20,6 +20,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_fb_test/feedback",
+      headers: authHeaders,
       payload: { rating: 5, comment: "Excellent service!" },
     });
     expect(res.statusCode).toBe(200);
@@ -38,6 +39,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_fb_test/feedback",
+      headers: authHeaders,
       payload: { rating: 3, comment: "It was okay." },
     });
     expect(res.statusCode).toBe(200);
@@ -53,6 +55,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_comment_only/feedback",
+      headers: authHeaders,
       payload: { comment: "Good follow-up needed." },
     });
     expect(res.statusCode).toBe(200);
@@ -68,6 +71,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_rating_only/feedback",
+      headers: authHeaders,
       payload: { rating: 4 },
     });
     expect(res.statusCode).toBe(200);
@@ -81,6 +85,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_fb_test/feedback",
+      headers: authHeaders,
       payload: { rating: 0 },
     });
     expect(res.statusCode).toBe(400);
@@ -90,6 +95,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/call_fb_test/feedback",
+      headers: authHeaders,
       payload: { rating: 6 },
     });
     expect(res.statusCode).toBe(400);
@@ -99,6 +105,7 @@ describe("POST /api/calls/:id/feedback", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/api/calls/nonexistent_call_xyz/feedback",
+      headers: authHeaders,
       payload: { rating: 3 },
     });
     expect(res.statusCode).toBe(404);

@@ -3,7 +3,7 @@
  * Uses Fastify's inject() for in-process HTTP testing.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestApp, seedCall, schema } from "./helpers.js";
+import { createTestApp, seedCall, schema, authHeaders } from "./helpers.js";
 import type { TestApp } from "./helpers.js";
 
 let ctx: TestApp;
@@ -68,7 +68,7 @@ afterAll(() => ctx.sqlite.close());
 
 describe("GET /api/calls", () => {
   it("returns a list of calls with total count", async () => {
-    const res = await ctx.app.inject({ method: "GET", url: "/api/calls" });
+    const res = await ctx.app.inject({ method: "GET", url: "/api/calls", headers: authHeaders });
     expect(res.statusCode).toBe(200);
 
     const body = res.json<{ calls: unknown[]; total: number; page: number; pageSize: number }>();
@@ -79,13 +79,13 @@ describe("GET /api/calls", () => {
   });
 
   it("orders by startTime descending (newest first)", async () => {
-    const res = await ctx.app.inject({ method: "GET", url: "/api/calls" });
+    const res = await ctx.app.inject({ method: "GET", url: "/api/calls", headers: authHeaders });
     const { calls } = res.json<{ calls: Array<{ id: string; startTime: number }> }>();
     expect(calls[0].startTime).toBeGreaterThan(calls[1].startTime);
   });
 
   it("includes nested feedback object in list response", async () => {
-    const res = await ctx.app.inject({ method: "GET", url: "/api/calls" });
+    const res = await ctx.app.inject({ method: "GET", url: "/api/calls", headers: authHeaders });
     const { calls } = res.json<{ calls: Array<{ id: string; feedback: { rating: number } | null }> }>();
     const call001 = calls.find((c) => c.id === "conv_001");
     expect(call001?.feedback?.rating).toBe(4);
@@ -98,6 +98,7 @@ describe("GET /api/calls", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?status=failure",
+      headers: authHeaders,
     });
     const { calls, total } = res.json<{ calls: Array<{ callSuccessful: string }>; total: number }>();
     // status filter maps to calls.status column (not callSuccessful) in the route,
@@ -110,6 +111,7 @@ describe("GET /api/calls", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?page=1&pageSize=1",
+      headers: authHeaders,
     });
     const { calls, total } = res.json<{ calls: unknown[]; total: number }>();
     expect(calls).toHaveLength(1);
@@ -120,6 +122,7 @@ describe("GET /api/calls", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?search=parking",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls.some((c) => c.id === "conv_001")).toBe(true);
@@ -130,6 +133,7 @@ describe("GET /api/calls", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?search=zzznomatch",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: unknown[] }>();
     expect(calls).toHaveLength(0);
@@ -145,6 +149,7 @@ describe("GET /api/calls — date range filter", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?from=2023-11-14",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls.some((c) => c.id === "conv_001")).toBe(true);
@@ -155,6 +160,7 @@ describe("GET /api/calls — date range filter", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?from=2023-11-15",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls).toHaveLength(0);
@@ -164,6 +170,7 @@ describe("GET /api/calls — date range filter", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?to=2023-11-13",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls).toHaveLength(0);
@@ -174,6 +181,7 @@ describe("GET /api/calls — date range filter", () => {
       method: "GET",
       // from just before conv_001, to just after conv_001 but before conv_002
       url: `/api/calls?from=1700000050&to=1700000150`,
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls.some((c) => c.id === "conv_001")).toBe(true);
@@ -184,6 +192,7 @@ describe("GET /api/calls — date range filter", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls?from=2023-11-14&status=success",
+      headers: authHeaders,
     });
     const { calls } = res.json<{ calls: Array<{ id: string }> }>();
     expect(calls.some((c) => c.id === "conv_001")).toBe(true);
@@ -198,6 +207,7 @@ describe("GET /api/calls/:id", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls/conv_001",
+      headers: authHeaders,
     });
     expect(res.statusCode).toBe(200);
 
@@ -220,6 +230,7 @@ describe("GET /api/calls/:id", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls/conv_001",
+      headers: authHeaders,
     });
     const { transcript } = res.json<{
       transcript: Array<{ sortOrder: number }>;
@@ -232,6 +243,7 @@ describe("GET /api/calls/:id", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls/conv_002",
+      headers: authHeaders,
     });
     expect(res.statusCode).toBe(200);
     const { feedback } = res.json<{ feedback: null }>();
@@ -242,6 +254,7 @@ describe("GET /api/calls/:id", () => {
     const res = await ctx.app.inject({
       method: "GET",
       url: "/api/calls/conv_does_not_exist",
+      headers: authHeaders,
     });
     expect(res.statusCode).toBe(404);
     const body = res.json<{ error: string }>();
