@@ -9,7 +9,7 @@
   "tool_error_handling_mode": "auto",
   "execution_mode": "async",
   "api_schema": {
-    "url": "https://{{system__env_base_url}}/agent-api/v1/callLogEntry",
+    "url": "https://{{system__env_base_url}}/api/webhook/callLogEntry",
     "method": "POST",
     "path_params_schema": [],
     "query_params_schema": [],
@@ -24,17 +24,6 @@
       "enum": null,
       "is_system_provided": false,
       "properties": [
-        {
-          "id": "event_timestamp",
-          "type": "number",
-          "description": "Unix timestamp of when the event occurred",
-          "value_type": "llm_prompt",
-          "dynamic_variable": "",
-          "constant_value": "",
-          "enum": null,
-          "is_system_provided": false,
-          "required": true
-        },
         {
           "id": "type",
           "type": "string",
@@ -63,9 +52,9 @@
               "description": "",
               "value_type": "constant",
               "dynamic_variable": "",
-              "constant_value": "",
+              "constant_value": "{{system__conversation_id}}",
               "enum": null,
-              "is_system_provided": true,
+              "is_system_provided": false,
               "required": false
             },
             {
@@ -74,9 +63,9 @@
               "description": "",
               "value_type": "constant",
               "dynamic_variable": "",
-              "constant_value": "",
+              "constant_value": "{{system__agent_id}}",
               "enum": null,
-              "is_system_provided": true,
+              "is_system_provided": false,
               "required": false
             },
             {
@@ -151,17 +140,6 @@
               "is_system_provided": false,
               "required": true,
               "properties": [
-                {
-                  "id": "start_time_unix_secs",
-                  "type": "number",
-                  "description": "Unix timestamp when the call started",
-                  "value_type": "llm_prompt",
-                  "dynamic_variable": "",
-                  "constant_value": "",
-                  "enum": null,
-                  "is_system_provided": false,
-                  "required": true
-                },
                 {
                   "id": "call_duration_secs",
                   "type": "number",

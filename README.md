@@ -136,7 +136,7 @@ npm test --workspace=apps/server
 | `POST` | `/api/calls/:id/feedback` | Save rating (1–5) and/or comment |
 | `POST` | `/api/sync` | Pull latest conversations from ElevenLabs |
 | `POST` | `/api/knowledge/query` | Agent webhook tool – hotel knowledge lookup |
-| `POST` | `/agent-api/v1/callLogEntry` | ElevenLabs post-call webhook receiver |
+| `POST` | `/webhook/callLogEntry` | ElevenLabs post-call webhook receiver |
 
 ---
 
