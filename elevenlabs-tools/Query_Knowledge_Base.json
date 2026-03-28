@@ -1,0 +1,67 @@
+{
+  "type": "webhook",
+  "name": "Query_Knowledge_Base",
+  "description": "Look up hotel-specific information from the knowledge base during a call. Use this to answer guest questions about hotel facilities, policies, room types, check-in/out times, etc. Provide the topic the guest is asking about, and optionally the hotel name if known.",
+  "disable_interruptions": false,
+  "force_pre_tool_speech": "auto",
+  "tool_call_sound": null,
+  "tool_call_sound_behavior": "auto",
+  "tool_error_handling_mode": "auto",
+  "execution_mode": "immediate",
+  "api_schema": {
+    "url": "https://{{system__env_base_url}}/api/knowledge/query",
+    "method": "POST",
+    "path_params_schema": [],
+    "query_params_schema": [],
+    "request_body_schema": {
+      "id": "body",
+      "type": "object",
+      "description": "Knowledge base query parameters",
+      "required": true,
+      "value_type": "llm_prompt",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "properties": [
+        {
+          "id": "topic",
+          "type": "string",
+          "description": "The topic the guest is asking about, e.g. \"parking\", \"pets\", \"breakfast\", \"check-in\", \"cancellation\", \"wifi\", \"spa\"",
+          "value_type": "llm_prompt",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "hotel_name",
+          "type": "string",
+          "description": "Name of the hotel the guest is asking about. Omit if the question applies to the chain in general or if no specific hotel has been mentioned.",
+          "value_type": "llm_prompt",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": false
+        }
+      ]
+    },
+    "request_headers": [
+      {
+        "type": "env_var",
+        "name": "x-api-key",
+        "env_var_label": "backend_api_key"
+      }
+    ],
+    "content_type": "application/json",
+    "auth_connection": null
+  },
+  "assignments": [],
+  "response_timeout_secs": 5,
+  "dynamic_variables": {
+    "dynamic_variable_placeholders": {}
+  },
+  "response_mocks": []
+}
