@@ -7,17 +7,15 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   hotels,
-  hotelFacilities,
-  roomTypes,
-  hotelPolicies,
+  knowledgeEntries,
   calls,
   callTranscripts,
   callFeedback,
 } from "@clarai/db";
 import { buildApp } from "../buildApp.js";
 
-// Re-export as named tables for use in test files (avoids the circular `schema` re-export issue)
-export const schema = { hotels, hotelFacilities, roomTypes, hotelPolicies, calls, callTranscripts, callFeedback };
+// Re-export as named tables for use in test files
+export const schema = { hotels, knowledgeEntries, calls, callTranscripts, callFeedback };
 
 // ── DDL (mirrors packages/db/src/seed.ts) ────────────────────────────────────
 const DDL = `
@@ -30,34 +28,24 @@ CREATE TABLE IF NOT EXISTS hotels (
   phone TEXT,
   email TEXT,
   description TEXT,
+  reception_hours TEXT,
   check_in_time TEXT,
   check_out_time TEXT,
+  total_rooms INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
-CREATE TABLE IF NOT EXISTS hotel_facilities (
+CREATE TABLE IF NOT EXISTS knowledge_entries (
   id TEXT PRIMARY KEY,
-  hotel_id TEXT NOT NULL REFERENCES hotels(id),
-  category TEXT NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-  metadata TEXT
-);
-CREATE TABLE IF NOT EXISTS room_types (
-  id TEXT PRIMARY KEY,
-  hotel_id TEXT NOT NULL REFERENCES hotels(id),
-  name TEXT NOT NULL,
-  description TEXT,
-  max_occupancy INTEGER,
-  price_from_eur REAL,
-  amenities TEXT
-);
-CREATE TABLE IF NOT EXISTS hotel_policies (
-  id TEXT PRIMARY KEY,
-  hotel_id TEXT,
+  hotel_id TEXT REFERENCES hotels(id),
   topic TEXT NOT NULL,
-  content TEXT NOT NULL
+  subtopic TEXT,
+  content TEXT NOT NULL,
+  keywords TEXT,
+  sort_order INTEGER DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_ke_hotel_topic ON knowledge_entries(hotel_id, topic);
+CREATE INDEX IF NOT EXISTS idx_ke_topic ON knowledge_entries(topic);
 CREATE TABLE IF NOT EXISTS calls (
   id TEXT PRIMARY KEY,
   agent_id TEXT NOT NULL,
@@ -102,7 +90,6 @@ export async function createTestApp(opts: { webhookSecret?: string; apiKey?: str
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(DDL);
 
-  // Use the explicit schema (not the re-exported namespace) so Drizzle can process it cleanly
   const db = drizzle(sqlite, { schema }) as Awaited<
     ReturnType<typeof import("@clarai/db").getDb>
   >;
@@ -137,7 +124,7 @@ export function seedCall(
   });
 }
 
-/** Seed a hotel + facilities for knowledge tests */
+/** Seed a hotel + knowledge entries for knowledge tests */
 export async function seedKnowledgeBase(
   db: Awaited<ReturnType<typeof import("@clarai/db").getDb>>
 ) {
@@ -146,85 +133,76 @@ export async function seedKnowledgeBase(
 
   await db.insert(schema.hotels).values({
     id: hotelId,
-    name: "Dormero Hotel Coburg",
+    name: "DORMERO Hotel Coburg",
     slug: "coburg",
     city: "Coburg",
     checkInTime: "15:00",
-    checkOutTime: "11:00",
+    checkOutTime: "12:00",
+    receptionHours: "13:00–23:00 Uhr",
+    totalRooms: 68,
     createdAt: now,
     updatedAt: now,
   });
 
-  await db.insert(schema.hotelFacilities).values([
+  await db.insert(schema.knowledgeEntries).values([
+    // Hotel-specific entries
     {
-      id: "fac_parking",
+      id: "ke_parking",
       hotelId,
-      category: "parking",
-      name: "Underground Parking",
-      description: "Secure underground parking garage available 24/7.",
-      metadata: JSON.stringify({
-        price_per_day_eur: 12,
-        height_limit_m: 2.0,
-        ev_charging: false,
-      }),
+      topic: "parking",
+      content: "Das DORMERO Hotel Coburg bietet 8 Parkplätze hinter dem Haus. Das Parkticket kostet 20 € am Tag. Eine Reservierung ist nicht möglich.",
+      keywords: "parken,parkplatz,auto",
     },
     {
-      id: "fac_wifi",
+      id: "ke_rooms",
       hotelId,
-      category: "wifi",
-      name: "Free WiFi",
-      description: "Complimentary high-speed WiFi throughout the hotel.",
-      metadata: null,
+      topic: "rooms",
+      content: "Das DORMERO Hotel Coburg bietet folgende Zimmerkategorien: Einzelzimmer (18 m²), Komfort Zimmer (22 m²), Superior Zimmer (25 m²), Deluxe Zimmer (25 m²). Alle mit kostenfreiem WLAN, Flatscreen TV und Minibar.",
+      keywords: "zimmer,room,übernachtung",
+      subtopic: "overview",
     },
     {
-      id: "fac_wellness",
+      id: "ke_wellness",
       hotelId,
-      category: "wellness",
-      name: "Spa & Fitness",
-      description: "Spa, sauna, and fitness centre available to all guests.",
-      metadata: null,
+      topic: "wellness",
+      content: "Der Wellnessbereich umfasst ca. 300 m²: Finnische Sauna, Bio Sauna, Dampfbad, Massagen und Fitness.",
+      keywords: "wellness,spa,sauna,fitness",
     },
-  ]);
-
-  await db.insert(schema.hotelPolicies).values([
     {
-      id: "pol_pets",
-      hotelId: null, // chain-wide
+      id: "ke_wifi",
+      hotelId,
+      topic: "wifi",
+      content: "Kostenfreies WLAN im gesamten Hotel verfügbar.",
+      keywords: "wlan,wifi,internet",
+    },
+    {
+      id: "ke_breakfast_hotel",
+      hotelId,
+      topic: "breakfast",
+      content: "Frühstück im DORMERO Hotel Coburg: 19,90 € pro Person, täglich von 06:30 bis 10:30 Uhr.",
+      keywords: "frühstück,breakfast,morgens",
+    },
+    // Chain-wide entries
+    {
+      id: "ke_pets_chain",
+      hotelId: null,
       topic: "pets",
-      content: "Pets are welcome at all Dormero hotels. A fee of €15/night applies.",
+      content: "Bei DORMERO checkt Ihr Haustier gratis mit ein. Geben Sie diese Information bei der Reservierung an.",
+      keywords: "haustier,hund,katze,tier",
     },
     {
-      id: "pol_cancel",
+      id: "ke_cancel_chain",
       hotelId: null,
       topic: "cancellation",
-      content: "Free cancellation up to 24 hours before arrival. Late cancellations incur one night's charge.",
+      content: "Die Fancy Saver Rate ist nicht stornierbar. Die Smart Rate ist flexibel stornierbar bis 24 Stunden vor Anreise.",
+      keywords: "stornierung,stornieren,absagen",
     },
     {
-      id: "pol_breakfast",
+      id: "ke_checkin_chain",
       hotelId: null,
-      topic: "breakfast",
-      content: "Breakfast buffet is available daily from 06:30 to 10:30. Price: €18 per person.",
-    },
-  ]);
-
-  await db.insert(schema.roomTypes).values([
-    {
-      id: "room_single",
-      hotelId,
-      name: "Standard Single",
-      description: "Cosy single room with city view.",
-      maxOccupancy: 1,
-      priceFromEur: 89,
-      amenities: JSON.stringify(["wifi", "safe", "minibar"]),
-    },
-    {
-      id: "room_double",
-      hotelId,
-      name: "Superior Double",
-      description: "Spacious double room.",
-      maxOccupancy: 2,
-      priceFromEur: 129,
-      amenities: JSON.stringify(["wifi", "safe", "minibar", "bathtub"]),
+      topic: "checkin",
+      content: "Check-in ab 15:00 Uhr bis 23:00 Uhr. Check-out bis 12:00 Uhr. Late Check-out bis 14:00 Uhr sonntags und an Feiertagen.",
+      keywords: "check-in,check-out,einchecken,auschecken",
     },
   ]);
 

@@ -21,48 +21,41 @@ describe("generateKbDocs", () => {
   it("returns one document per hotel", async () => {
     const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     expect(docs).toHaveLength(1);
-    expect(docs[0].hotelName).toBe("Dormero Hotel Coburg");
+    expect(docs[0].hotelName).toBe("DORMERO Hotel Coburg");
   });
 
   it("generated markdown contains hotel name as heading", async () => {
     const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     const { markdown } = docs[0];
-    expect(markdown).toContain("# Dormero Hotel Coburg");
+    expect(markdown).toContain("# DORMERO Hotel Coburg");
   });
 
   it("generated markdown contains check-in and check-out times", async () => {
     const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     const { markdown } = docs[0];
     expect(markdown).toContain("15:00");
-    expect(markdown).toContain("11:00");
+    expect(markdown).toContain("12:00");
   });
 
-  it("generated markdown contains facilities section", async () => {
+  it("generated markdown contains knowledge sections in German", async () => {
     const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     const { markdown } = docs[0];
-    expect(markdown).toContain("## Facilities");
-    expect(markdown).toContain("Underground Parking");
-    expect(markdown).toContain("Free WiFi");
+    // Parking section
+    expect(markdown).toContain("## Parken");
+    expect(markdown).toContain("Parkplätze");
+    // Rooms section
+    expect(markdown).toContain("## Zimmer");
+    expect(markdown).toContain("Einzelzimmer");
   });
 
-  it("generated markdown contains room types with prices", async () => {
+  it("generated markdown contains chain-wide policies", async () => {
     const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     const { markdown } = docs[0];
-    expect(markdown).toContain("## Room Types");
-    expect(markdown).toContain("Standard Single");
-    expect(markdown).toContain("€89");
-  });
-
-  it("generated markdown contains policies section", async () => {
-    const docs = await generateKbDocs(ctx.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
-    const { markdown } = docs[0];
-    expect(markdown).toContain("## Policies");
-    expect(markdown).toContain("cancellation");
-    expect(markdown).toContain("Free cancellation");
+    expect(markdown).toContain("## Stornierung");
+    expect(markdown).toContain("stornierbar");
   });
 
   it("returns empty array when no hotels exist", async () => {
-    // Use a fresh app with empty DB
     const empty = await createTestApp();
     const docs = await generateKbDocs(empty.db as unknown as BetterSQLite3Database<Record<string, unknown>>);
     expect(docs).toHaveLength(0);

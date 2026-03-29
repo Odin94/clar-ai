@@ -18,12 +18,7 @@ import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { getDb } from "./index.js";
-import {
-  hotels,
-  hotelFacilities,
-  roomTypes,
-  hotelPolicies,
-} from "./schema.js";
+import { hotels, knowledgeEntries } from "./schema.js";
 import { eq, or, isNull } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
@@ -46,28 +41,17 @@ type Db = BetterSQLite3Database<Record<string, unknown>>;
  */
 export async function generateKbDocs(db: Db): Promise<GeneratedDoc[]> {
   const allHotels = await db.select().from(hotels);
-
   const docs: GeneratedDoc[] = [];
 
   for (const hotel of allHotels) {
-    const facilities = await db
+    // Hotel-specific + chain-wide entries
+    const entries = await db
       .select()
-      .from(hotelFacilities)
-      .where(eq(hotelFacilities.hotelId, hotel.id));
+      .from(knowledgeEntries)
+      .where(or(eq(knowledgeEntries.hotelId, hotel.id), isNull(knowledgeEntries.hotelId)))
+      .orderBy(knowledgeEntries.topic, knowledgeEntries.sortOrder);
 
-    const rooms = await db
-      .select()
-      .from(roomTypes)
-      .where(eq(roomTypes.hotelId, hotel.id));
-
-    // Hotel-specific + chain-wide policies
-    const policies = await db
-      .select()
-      .from(hotelPolicies)
-      .where(or(eq(hotelPolicies.hotelId, hotel.id), isNull(hotelPolicies.hotelId)));
-
-    const markdown = buildMarkdown(hotel, facilities, rooms, policies);
-
+    const markdown = buildMarkdown(hotel, entries);
     docs.push({ hotelId: hotel.id, hotelName: hotel.name, markdown });
   }
 
@@ -78,87 +62,76 @@ export async function generateKbDocs(db: Db): Promise<GeneratedDoc[]> {
 
 function buildMarkdown(
   hotel: typeof hotels.$inferSelect,
-  facilities: (typeof hotelFacilities.$inferSelect)[],
-  rooms: (typeof roomTypes.$inferSelect)[],
-  policies: (typeof hotelPolicies.$inferSelect)[]
+  entries: (typeof knowledgeEntries.$inferSelect)[]
 ): string {
   const lines: string[] = [];
 
-  // Header
   lines.push(`# ${hotel.name}`);
   lines.push("");
 
   // Overview
-  lines.push("## Overview");
-  if (hotel.city) lines.push(`- **City**: ${hotel.city}`);
-  if (hotel.address) lines.push(`- **Address**: ${hotel.address}`);
-  if (hotel.phone) lines.push(`- **Phone**: ${hotel.phone}`);
-  if (hotel.email) lines.push(`- **Email**: ${hotel.email}`);
+  lines.push("## Übersicht");
+  if (hotel.city) lines.push(`- **Stadt**: ${hotel.city}`);
+  if (hotel.address) lines.push(`- **Adresse**: ${hotel.address}`);
+  if (hotel.phone) lines.push(`- **Telefon**: ${hotel.phone}`);
+  if (hotel.email) lines.push(`- **E-Mail**: ${hotel.email}`);
+  if (hotel.receptionHours) lines.push(`- **Rezeption**: ${hotel.receptionHours}`);
   if (hotel.checkInTime) lines.push(`- **Check-in**: ${hotel.checkInTime}`);
   if (hotel.checkOutTime) lines.push(`- **Check-out**: ${hotel.checkOutTime}`);
+  if (hotel.totalRooms) lines.push(`- **Zimmeranzahl**: ${hotel.totalRooms}`);
   if (hotel.description) {
     lines.push("");
     lines.push(hotel.description);
   }
   lines.push("");
 
-  // Facilities grouped by category
-  if (facilities.length > 0) {
-    lines.push("## Facilities");
-    const byCategory = new Map<string, typeof facilities>();
-    for (const f of facilities) {
-      const bucket = byCategory.get(f.category) ?? [];
-      bucket.push(f);
-      byCategory.set(f.category, bucket);
-    }
-    for (const [category, items] of byCategory) {
-      lines.push(`\n### ${capitalize(category)}`);
-      for (const item of items) {
-        lines.push(`- **${item.name}**: ${item.description ?? ""}`);
-        if (item.metadata) {
-          try {
-            const meta = JSON.parse(item.metadata);
-            const metaStr = Object.entries(meta)
-              .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
-              .join(", ");
-            if (metaStr) lines.push(`  (${metaStr})`);
-          } catch {
-            /* ignore invalid JSON */
-          }
-        }
-      }
-    }
-    lines.push("");
+  // Group entries by topic
+  const byTopic = new Map<string, typeof entries>();
+  for (const e of entries) {
+    const bucket = byTopic.get(e.topic) ?? [];
+    bucket.push(e);
+    byTopic.set(e.topic, bucket);
   }
 
-  // Room types
-  if (rooms.length > 0) {
-    lines.push("## Room Types");
-    for (const room of rooms) {
-      lines.push(`\n### ${room.name}`);
-      if (room.description) lines.push(room.description);
-      if (room.maxOccupancy) lines.push(`- **Max occupancy**: ${room.maxOccupancy} guests`);
-      if (room.priceFromEur != null) lines.push(`- **Price from**: €${room.priceFromEur}/night`);
-      if (room.amenities) {
-        try {
-          const amenities = JSON.parse(room.amenities) as string[];
-          lines.push(`- **Amenities**: ${amenities.join(", ")}`);
-        } catch {
-          lines.push(`- **Amenities**: ${room.amenities}`);
-        }
-      }
-    }
-    lines.push("");
-  }
+  const topicLabels: Record<string, string> = {
+    hotel_info: "Hotel-Information",
+    contact: "Kontakt",
+    reception: "Rezeption",
+    checkin: "Check-in / Check-out",
+    rooms: "Zimmer",
+    breakfast: "Frühstück",
+    brunch: "Brunch",
+    bar: "Bar",
+    restaurant: "Restaurant",
+    parking: "Parken",
+    construction: "Baustellenhinweise",
+    directions: "Anfahrt",
+    wellness: "Wellness & Fitness",
+    fitness: "Fitness",
+    meeting_rooms: "Tagungsräume",
+    meeting_packages: "Tagungspauschalen",
+    pets: "Haustiere",
+    hotel_pet: "Hotel-Haustier",
+    reservation: "Reservierung",
+    cancellation: "Stornierung",
+    payment: "Zahlung",
+    groups: "Gruppen & Events",
+    wifi: "WLAN",
+    smoking: "Rauchen",
+    free_standards: "Kostenlose Standards",
+    bed_system: "Schlafsystem",
+    lost_found: "Fundbüro",
+    fun_facts: "Fun Facts",
+  };
 
-  // Policies
-  if (policies.length > 0) {
-    lines.push("## Policies");
-    for (const policy of policies) {
-      lines.push(`\n### ${capitalize(policy.topic)}`);
-      lines.push(policy.content);
-    }
+  for (const [topic, items] of byTopic) {
+    const label = topicLabels[topic] ?? capitalize(topic);
+    lines.push(`## ${label}`);
     lines.push("");
+    for (const item of items) {
+      lines.push(item.content);
+      lines.push("");
+    }
   }
 
   return lines.join("\n");
@@ -236,19 +209,17 @@ async function main() {
       continue;
     }
 
-    // Write to disk
     const filepath = join(outDir, filename);
     writeFileSync(filepath, doc.markdown, "utf-8");
-    console.log(`✓ Written: ${filepath}`);
+    console.log(`Written: ${filepath}`);
 
-    // Optionally upload
     if (doUpload && apiKey) {
       try {
         const docId = await uploadToElevenLabs(apiKey, doc.hotelName, doc.markdown);
         doc.elevenLabsDocId = docId;
-        console.log(`  ↑ Uploaded to ElevenLabs (id: ${docId})`);
+        console.log(`  Uploaded to ElevenLabs (id: ${docId})`);
       } catch (err) {
-        console.error(`  ✗ Upload failed for ${doc.hotelName}:`, (err as Error).message);
+        console.error(`  Upload failed for ${doc.hotelName}:`, (err as Error).message);
       }
     }
   }
@@ -258,7 +229,6 @@ async function main() {
   }
 }
 
-// Only run main when executed directly (not when imported as a module)
 const thisFile = fileURLToPath(import.meta.url);
 if (process.argv[1] === thisFile || process.argv[1]?.endsWith("generateKbDocs.ts")) {
   main().catch((err) => {
