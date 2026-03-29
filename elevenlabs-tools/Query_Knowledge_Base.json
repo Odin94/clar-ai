@@ -1,7 +1,7 @@
 {
   "type": "webhook",
   "name": "Query_Knowledge_Base",
-  "description": "Look up hotel-specific information from the knowledge base during a call. Use this to answer guest questions about hotel facilities, policies, room types, check-in/out times, etc. Provide the topic the guest is asking about, and optionally the hotel name if known.",
+  "description": "Informationen aus der DORMERO-Wissensdatenbank abrufen. Nutze dieses Tool, um Gästefragen zu Hotel-Ausstattung, Richtlinien, Zimmern, Check-in/out, Parken, Wellness, Tagungen, Haustieren, Frühstück, Bar, Anfahrt usw. zu beantworten. Gib das Thema der Frage an und optional den Hotelnamen, falls bekannt. Antworte immer auf Deutsch.",
   "disable_interruptions": true,
   "force_pre_tool_speech": "auto",
   "tool_call_sound": null,
@@ -27,7 +27,7 @@
         {
           "id": "topic",
           "type": "string",
-          "description": "The topic the guest is asking about, e.g. \"parking\", \"pets\", \"breakfast\", \"check-in\", \"cancellation\", \"wifi\", \"spa\"",
+          "description": "Das Thema der Gästefrage, z.B. \"Parken\", \"Zimmer\", \"Frühstück\", \"Check-in\", \"Stornierung\", \"WLAN\", \"Wellness\", \"Haustiere\", \"Tagungsräume\", \"Bar\", \"Anfahrt\", \"Bezahlung\", \"Reservierung\", \"Gruppen\". Sende das Thema auf Deutsch.",
           "value_type": "llm_prompt",
           "dynamic_variable": "",
           "constant_value": "",
@@ -38,7 +38,7 @@
         {
           "id": "hotel_name",
           "type": "string",
-          "description": "Name of the hotel the guest is asking about. Omit if the question applies to the chain in general or if no specific hotel has been mentioned.",
+          "description": "Name des Hotels, z.B. \"Coburg\" oder \"Dessau\". Weglassen, wenn die Frage allgemein für die DORMERO-Kette gilt oder kein bestimmtes Hotel genannt wurde.",
           "value_type": "llm_prompt",
           "dynamic_variable": "",
           "constant_value": "",
