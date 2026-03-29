@@ -1,5 +1,5 @@
 import { getDb } from "./index.js";
-import { hotels, knowledgeEntries } from "./schema.js";
+import { hotels, knowledgeEntries, calls, callTranscripts, callFeedback } from "./schema.js";
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS hotels (
@@ -645,12 +645,438 @@ async function seed() {
     await db.insert(knowledgeEntries).values(allEntries.slice(i, i + BATCH_SIZE));
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // SAMPLE CALL LOGS
+  // ═══════════════════════════════════════════════════════════════════
+
+  await db.delete(callFeedback);
+  await db.delete(callTranscripts);
+  await db.delete(calls);
+
+  const AGENT_ID = "agent-viktoria-prod";
+
+  // Helper: timestamp relative to now (negative = past)
+  const hoursAgo = (h: number) => Math.floor((Date.now() - h * 3600_000) / 1000);
+
+  const sampleCalls = [
+    // ── Call 1: Parking question Coburg – successful, high rating ───
+    {
+      call: {
+        id: "conv_sample_001",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(2),
+        duration: 95,
+        summary: "Gast fragte nach Parkmöglichkeiten am DORMERO Hotel Coburg. Informationen zu 8 Parkplätzen (20 EUR/Tag) und Parkhaus Mauer bereitgestellt. Hinweis auf aktuelle Vollsperrung gegeben.",
+        callSuccessful: "success",
+        messageCount: 8,
+        costCredits: 0.12,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(1.9),
+        hotelMentioned: "DORMERO Hotel Coburg",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo, ich wollte fragen, wie das mit dem Parken in Coburg aussieht?", time: 4 },
+        { role: "agent", message: "Einen Moment bitte, ich schaue das gerne für Sie nach.", time: 9 },
+        { role: "agent", message: "Das DORMERO Hotel Coburg bietet 8 Parkplätze hinter dem Haus mit einer Einfahrtshöhe von 3,2 Metern. Das Parkticket kostet 20 Euro am Tag, eine Reservierung ist leider nicht möglich. Alternativ gibt es das Parkhaus Mauer in etwa 100 Metern Entfernung.", time: 15 },
+        { role: "user", message: "Gut zu wissen. Gibt es da gerade irgendwelche Einschränkungen?", time: 30 },
+        { role: "agent", message: "Ja, wichtiger Hinweis: Vom 23. März bis voraussichtlich 10. April 2026 ist der Bereich Am Viktoriabrunnen vollständig gesperrt. Das Parkhaus Mauer bleibt aber erreichbar, die Zufahrt erfolgt über die Umleitung Mohrenstraße, Webergasse und Judengasse.", time: 35 },
+        { role: "user", message: "Super, vielen Dank für die Info!", time: 55 },
+        { role: "agent", message: "Sehr gerne! Auf einer Skala von 1 bis 5, wie zufrieden waren Sie mit unserem Gespräch heute?", time: 58 },
+        { role: "user", message: "Ich würde eine 5 geben, sehr hilfreich!", time: 65 },
+        { role: "agent", message: "Vielen Dank für die tolle Bewertung! Ich wünsche Ihnen eine angenehme Anreise. Auf Wiederhören!", time: 70 },
+      ],
+      feedback: { rating: 5, comment: "Sehr hilfreich, alle Fragen direkt beantwortet.", source: "voice" as const },
+    },
+
+    // ── Call 2: Room inquiry Dessau – successful, good rating ────────
+    {
+      call: {
+        id: "conv_sample_002",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(5),
+        duration: 120,
+        summary: "Gast erkundigte sich nach Zimmertypen im DORMERO Hotel Dessau. Standard- und Komfort-Zimmer vorgestellt. Gast wurde an die Online-Buchung verwiesen.",
+        callSuccessful: "success",
+        messageCount: 10,
+        costCredits: 0.15,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(4.9),
+        hotelMentioned: "DORMERO Hotel Dessau-Rosslau",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Guten Tag, ich interessiere mich für ein Zimmer in Dessau. Was gibt es denn da für Möglichkeiten?", time: 5 },
+        { role: "agent", message: "Gerne schaue ich das für Sie nach.", time: 12 },
+        { role: "agent", message: "Das DORMERO Hotel Dessau bietet zwei Zimmerkategorien: Das DORMERO Zimmer mit 23 bis 33 Quadratmetern, wahlweise mit Französischem-, Twin- oder Queensize-Bett. Und das DORMERO Komfort Zimmer mit 24 Quadratmetern und Kingsize-Bett. Alle Zimmer haben Badewanne, 55-Zoll-Flatscreen, kostenfreie Minibar und WLAN.", time: 18 },
+        { role: "user", message: "Das Komfort-Zimmer klingt gut. Was kostet das denn?", time: 40 },
+        { role: "agent", message: "Die tagesaktuellen Zimmerpreise können Sie auf unserer Website dormero.de über die Suchen-und-Buchen-Funktion einsehen. Die Preise richten sich nach Auslastung und sind pro Zimmer, exklusive Frühstück.", time: 45 },
+        { role: "user", message: "Okay, und kann man Frühstück dazu buchen?", time: 60 },
+        { role: "agent", message: "Ja, das Frühstück kostet 19,90 Euro pro Person und wird täglich von 6:30 bis 10:30 Uhr angeboten. Es ist ein vielfältiges Buffet mit Heißgetränken, Wasser und Säften inklusive.", time: 65 },
+        { role: "user", message: "Perfekt, dann buche ich online. Danke!", time: 80 },
+        { role: "agent", message: "Sehr gerne! Bevor wir auflegen — auf einer Skala von 1 bis 5, wie zufrieden waren Sie?", time: 85 },
+        { role: "user", message: "Eine 4, war gut!", time: 90 },
+        { role: "agent", message: "Vielen Dank! Ich wünsche Ihnen einen wunderbaren Aufenthalt in Dessau. Auf Wiederhören!", time: 93 },
+      ],
+      feedback: { rating: 4, comment: null, source: "voice" as const },
+    },
+
+    // ── Call 3: Pet policy – chain-wide, no specific hotel ──────────
+    {
+      call: {
+        id: "conv_sample_003",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(8),
+        duration: 75,
+        summary: "Gast fragte, ob Haustiere in DORMERO Hotels erlaubt sind. Kostenfreie Haustier-Mitnahme bestätigt. Gast war sehr erfreut.",
+        callSuccessful: "success",
+        messageCount: 6,
+        costCredits: 0.09,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(7.8),
+        hotelMentioned: null,
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo, ich habe einen kleinen Hund. Darf ich den mitbringen ins Hotel?", time: 4 },
+        { role: "agent", message: "Aber natürlich! Bei DORMERO checkt Ihr Haustier gratis mit ein. Geben Sie diese Information einfach bei der Reservierung an und checken Sie gemeinsam ein.", time: 10 },
+        { role: "user", message: "Oh toll, das ist ja super! Das gibt es nicht überall.", time: 25 },
+        { role: "agent", message: "Das freut mich! DORMERO ist bekannt dafür, tierfreundlich zu sein. Jedes unserer Hotels hat sogar ein eigenes Haustier, das aus schwierigen Situationen gerettet wurde. Darf ich sonst noch etwas für Sie tun?", time: 30 },
+        { role: "user", message: "Nein, das war alles, vielen Dank!", time: 45 },
+        { role: "agent", message: "Wie zufrieden waren Sie mit unserem Gespräch auf einer Skala von 1 bis 5?", time: 48 },
+        { role: "user", message: "5! Sehr freundlich.", time: 52 },
+        { role: "agent", message: "Herzlichen Dank! Wir freuen uns auf Sie und Ihren Vierbeiner. Auf Wiederhören!", time: 55 },
+      ],
+      feedback: { rating: 5, comment: "Sehr freundlich und tierlieb!", source: "voice" as const },
+    },
+
+    // ── Call 4: Complaint about noise – Coburg ──────────────────────
+    {
+      call: {
+        id: "conv_sample_004",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(12),
+        duration: 180,
+        summary: "Gast beschwerte sich über Lärm durch Bauarbeiten vor dem DORMERO Hotel Coburg. Hinweis auf die aktuelle Vollsperrung gegeben und Entschuldigung ausgesprochen. Gast wurde an das Hotel direkt verwiesen.",
+        callSuccessful: "failure",
+        messageCount: 12,
+        costCredits: 0.22,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(11.8),
+        hotelMentioned: "DORMERO Hotel Coburg",
+        complaintCategory: "Lärm",
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Ja hallo, ich bin gerade im Hotel in Coburg und es ist unglaublich laut hier wegen der Baustelle draußen. Ich kann nicht schlafen!", time: 4 },
+        { role: "agent", message: "Das tut mir sehr leid zu hören! Ich verstehe Ihre Frustration. Lassen Sie mich kurz nachschauen, was dort aktuell passiert.", time: 15 },
+        { role: "agent", message: "Tatsächlich gibt es aktuell eine Vollsperrung im Bereich Hauptstraße und Am Viktoriabrunnen für Bauarbeiten, vom 23. März bis voraussichtlich 10. April 2026. Ich entschuldige mich vielmals für die Unannehmlichkeiten.", time: 22 },
+        { role: "user", message: "Das ist ja schön und gut, aber ich habe 20 Euro für den Parkplatz bezahlt und kann nicht mal richtig schlafen. Das hätte man bei der Buchung sagen können!", time: 45 },
+        { role: "agent", message: "Sie haben völlig recht, und ich verstehe Ihren Ärger. Leider kann ich von hier aus keine Kompensation veranlassen, aber ich empfehle Ihnen dringend, sich direkt an die Rezeption zu wenden. Das Team vor Ort kann Ihnen sicher eine Lösung anbieten.", time: 55 },
+        { role: "user", message: "Können die mir ein anderes Zimmer geben, weiter weg von der Straße?", time: 75 },
+        { role: "agent", message: "Das wäre sicherlich eine Möglichkeit — die Rezeption kann prüfen, ob ein Zimmer mit Hofblick verfügbar ist. Sprechen Sie das Team direkt darauf an, die sind von 13 bis 23 Uhr vor Ort oder telefonisch unter 09561-8760 erreichbar.", time: 80 },
+        { role: "user", message: "Na gut, mache ich. Danke.", time: 100 },
+        { role: "agent", message: "Nochmals, es tut mir wirklich leid. Darf ich Sie noch kurz fragen — auf einer Skala von 1 bis 5, wie zufrieden waren Sie mit diesem Gespräch?", time: 105 },
+        { role: "user", message: "Na ja, Sie können ja nichts dafür. Ich gebe eine 3.", time: 115 },
+        { role: "agent", message: "Vielen Dank für Ihre Rückmeldung. Ich hoffe, die Rezeption kann Ihnen schnell weiterhelfen. Auf Wiederhören!", time: 120 },
+      ],
+      feedback: { rating: 3, comment: "Baulärm ist unerträglich. Viktoria war nett, konnte aber nicht direkt helfen.", source: "voice" as const },
+    },
+
+    // ── Call 5: Meeting rooms Dessau – successful ───────────────────
+    {
+      call: {
+        id: "conv_sample_005",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(24),
+        duration: 150,
+        summary: "Firmenkunde erkundigte sich nach Tagungsräumen im DORMERO Hotel Dessau für 50 Personen. Räume Seya und Cerda vorgestellt, Ganztagespauschale (79 EUR) erklärt. An event@dormero.de verwiesen.",
+        callSuccessful: "success",
+        messageCount: 10,
+        costCredits: 0.18,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(23.8),
+        hotelMentioned: "DORMERO Hotel Dessau-Rosslau",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Guten Tag, ich plane eine Firmenveranstaltung für circa 50 Personen in Dessau. Haben Sie da passende Räume?", time: 5 },
+        { role: "agent", message: "Selbstverständlich! Lassen Sie mich die Tagungsmöglichkeiten in Dessau für Sie nachschlagen.", time: 13 },
+        { role: "agent", message: "Das DORMERO Hotel Dessau verfügt über 9 Tagungsräume. Für 50 Personen eignen sich besonders die Räume Seya mit 84 Quadratmetern oder Cerda mit 85 Quadratmetern, beide für bis zu 70 Personen. Falls Sie mehr Platz benötigen, können Seya und Cerda zu einem Raum mit 169 Quadratmetern kombiniert werden.", time: 20 },
+        { role: "user", message: "Das klingt gut. Was kostet das mit Verpflegung?", time: 45 },
+        { role: "agent", message: "Die Ganztagespauschale beträgt 79 Euro pro Person ab 10 Personen. Darin enthalten sind Tagungsraum, Equipment, Kaffeepausen vormittags und nachmittags, ein internationales Lunchbuffet oder 3-Gang-Menü und 2 Tagungsgetränke. Für unlimitierte Getränke kommt ein Aufschlag von 6 Euro pro Person hinzu.", time: 50 },
+        { role: "user", message: "Sehr gut. An wen wende ich mich da am besten?", time: 75 },
+        { role: "agent", message: "Für ein persönliches Angebot schicken Sie bitte eine E-Mail an event@dormero.de und nennen Sie dabei das DORMERO Hotel Dessau sowie Ihre Wünsche. Das Event-Team erstellt Ihnen dann ein maßgeschneidertes Angebot.", time: 80 },
+        { role: "user", message: "Perfekt, das mache ich. Herzlichen Dank!", time: 100 },
+        { role: "agent", message: "Gerne! Kurze Frage noch — wie zufrieden waren Sie mit unserem Gespräch, von 1 bis 5?", time: 103 },
+        { role: "user", message: "Ganz klar eine 5!", time: 108 },
+        { role: "agent", message: "Wunderbar, vielen Dank! Ich wünsche Ihnen eine erfolgreiche Veranstaltung. Auf Wiederhören!", time: 111 },
+      ],
+      feedback: { rating: 5, comment: "Sehr kompetente Auskunft zu den Tagungsräumen.", source: "voice" as const },
+    },
+
+    // ── Call 6: Check-in times – quick call, no rating given ────────
+    {
+      call: {
+        id: "conv_sample_006",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(30),
+        duration: 45,
+        summary: "Gast fragte nach Check-in- und Check-out-Zeiten. Allgemeine Zeiten mitgeteilt. Gast hat kein Feedback gegeben.",
+        callSuccessful: "success",
+        messageCount: 6,
+        costCredits: 0.06,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(29.5),
+        hotelMentioned: null,
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Kurze Frage: Ab wann kann ich einchecken und bis wann muss ich auschecken?", time: 4 },
+        { role: "agent", message: "Check-in ist ab 15 Uhr bis 23 Uhr möglich. Check-out bis 12 Uhr. Sonntags und an Feiertagen gibt es einen kostenfreien Late Check-out bis 14 Uhr.", time: 10 },
+        { role: "user", message: "Und wenn ich erst nach 23 Uhr ankomme?", time: 22 },
+        { role: "agent", message: "Bei Anreise nach 23 Uhr wenden Sie sich bitte frühzeitig per E-Mail an reservierung@dormero.de, damit alles für Sie vorbereitet werden kann.", time: 26 },
+        { role: "user", message: "Alles klar, danke. Tschüss!", time: 35 },
+        { role: "agent", message: "Gerne! Auf Wiederhören!", time: 37 },
+      ],
+      feedback: null,
+    },
+
+    // ── Call 7: Wellness Coburg – successful ────────────────────────
+    {
+      call: {
+        id: "conv_sample_007",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(36),
+        duration: 110,
+        summary: "Gast erkundigte sich nach dem Wellnessbereich und Massageangebot im DORMERO Hotel Coburg. Spa-Details und Kontakt der Masseurin weitergegeben.",
+        callSuccessful: "success",
+        messageCount: 8,
+        costCredits: 0.14,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(35.5),
+        hotelMentioned: "DORMERO Hotel Coburg",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo, ich komme nächste Woche nach Coburg und wollte wissen, ob es dort einen Wellness-Bereich gibt.", time: 4 },
+        { role: "agent", message: "Aber natürlich! Lassen Sie mich die Details nachschlagen.", time: 12 },
+        { role: "agent", message: "Der Wellnessbereich im DORMERO Hotel Coburg umfasst circa 300 Quadratmeter mit Finnischer Sauna, Bio-Sauna, Dampfbad, Erlebnisduschen und einem Loungebereich. Bitte beachten Sie, dass die Sauna nicht durchgängig läuft und auf Nachfrage angeschaltet wird, mit circa 30 Minuten Vorlaufzeit.", time: 18 },
+        { role: "user", message: "Gibt es auch Massagen?", time: 40 },
+        { role: "agent", message: "Ja! Die Masseurin Qinghua Rödiger verwöhnt Sie mit hochwertigen Bio-Massageölen. Sie können telefonisch einen Termin vereinbaren unter 0151-72505690 oder direkt an der Rezeption unter 09561-8760.", time: 45 },
+        { role: "user", message: "Wunderbar, da freue ich mich drauf. Danke schön!", time: 65 },
+        { role: "agent", message: "Sehr gerne! Wie zufrieden waren Sie mit unserem Gespräch, auf einer Skala von 1 bis 5?", time: 68 },
+        { role: "user", message: "4, sehr informativ!", time: 75 },
+        { role: "agent", message: "Vielen Dank! Ich wünsche Ihnen einen erholsamen Aufenthalt in Coburg. Auf Wiederhören!", time: 78 },
+      ],
+      feedback: { rating: 4, comment: "Gute Infos zum Wellness, hätte mir noch Preise gewünscht.", source: "voice" as const },
+    },
+
+    // ── Call 8: Cancellation policy – quick, somewhat unhappy ───────
+    {
+      call: {
+        id: "conv_sample_008",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(48),
+        duration: 90,
+        summary: "Gast wollte eine Fancy-Saver-Buchung stornieren. Wurde informiert, dass diese Rate nicht stornierbar ist. Gast war enttäuscht, wurde an Reservierung verwiesen.",
+        callSuccessful: "failure",
+        messageCount: 8,
+        costCredits: 0.11,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(47.5),
+        hotelMentioned: null,
+        complaintCategory: "Stornierung",
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo, ich muss leider meine Buchung stornieren. Geht das noch?", time: 5 },
+        { role: "agent", message: "Das kommt auf Ihren gebuchten Tarif an. Wissen Sie, welchen Tarif Sie gebucht haben?", time: 10 },
+        { role: "user", message: "Ich glaube, das war der günstige Tarif, Fancy irgendwas.", time: 18 },
+        { role: "agent", message: "Die Fancy Saver Rate ist leider nicht änder- oder stornierbar. Die Smart Rate hingegen wäre flexibel stornierbar bis 24 Stunden vor Anreise gewesen.", time: 23 },
+        { role: "user", message: "Das ist ärgerlich. Kann man da gar nichts machen?", time: 38 },
+        { role: "agent", message: "Ich verstehe Ihren Ärger. Leider kann ich von hier aus keine Ausnahmen machen, aber ich empfehle Ihnen, sich direkt an unsere Reservierungsabteilung zu wenden unter +49 30 20213300 oder per E-Mail an reservierung@dormero.de. Vielleicht lässt sich im Einzelfall eine Lösung finden.", time: 42 },
+        { role: "user", message: "Na gut, versuche ich mal. Danke trotzdem.", time: 60 },
+        { role: "agent", message: "Wie zufrieden waren Sie mit unserem Gespräch, von 1 bis 5?", time: 63 },
+        { role: "user", message: "Hmm, eine 2. Ist nicht Ihre Schuld, aber das Ergebnis ist enttäuschend.", time: 68 },
+        { role: "agent", message: "Das verstehe ich. Vielen Dank für Ihre ehrliche Rückmeldung. Ich drücke Ihnen die Daumen bei der Reservierungsabteilung. Auf Wiederhören!", time: 72 },
+      ],
+      feedback: { rating: 2, comment: "Konnte meine Buchung nicht stornieren. Fancy Saver ist eine Falle.", source: "voice" as const },
+    },
+
+    // ── Call 9: Breakfast Dessau with brunch question – successful ───
+    {
+      call: {
+        id: "conv_sample_009",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(60),
+        duration: 85,
+        summary: "Gast erkundigte sich nach Frühstück und FeiertagsFRUNCH im DORMERO Hotel Dessau. Preise und Termine für Osterbrunch mitgeteilt.",
+        callSuccessful: "success",
+        messageCount: 8,
+        costCredits: 0.10,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(59.5),
+        hotelMentioned: "DORMERO Hotel Dessau-Rosslau",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo, wir überlegen, über Ostern nach Dessau zu fahren. Gibt es da was Besonderes zum Frühstück?", time: 5 },
+        { role: "agent", message: "Oh ja! Lassen Sie mich nachschauen, was Dessau zu Ostern anbietet.", time: 13 },
+        { role: "agent", message: "An Ostern bietet das DORMERO Hotel Dessau den FeiertagsFRUNCH an — eine Kombination aus Frühstück und Lunch. Von 10:30 bis 14 Uhr mit vielseitigem Frühstücksbuffet und warmen Mittagsspeisen, inklusive Kaffeespezialitäten, Sekt, Tee und Säfte. Der Preis beträgt 24,90 Euro, Kinder unter 6 Jahren sind kostenlos, bis 12 Jahre zahlen die Hälfte.", time: 20 },
+        { role: "user", message: "Das klingt toll! An welchen Tagen genau?", time: 45 },
+        { role: "agent", message: "Am 5. April, Ostersonntag, und am 6. April, Ostermontag. Reservierung unter fo.dessau@dormero.de.", time: 50 },
+        { role: "user", message: "Super, das werden wir buchen! Vielen Dank!", time: 62 },
+        { role: "agent", message: "Sehr schön! Wie zufrieden waren Sie mit unserem Gespräch, von 1 bis 5?", time: 65 },
+        { role: "user", message: "5, absolut!", time: 70 },
+        { role: "agent", message: "Wunderbar! Frohe Ostern und auf Wiederhören!", time: 73 },
+      ],
+      feedback: { rating: 5, comment: "Toller Tipp mit dem Osterbrunch!", source: "voice" as const },
+    },
+
+    // ── Call 10: Failed call – connection issues ────────────────────
+    {
+      call: {
+        id: "conv_sample_010",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(72),
+        duration: 15,
+        summary: "Anruf mit Verbindungsproblemen. Gast war kaum verständlich, Gespräch wurde abgebrochen.",
+        callSuccessful: "failure",
+        messageCount: 3,
+        costCredits: 0.02,
+        terminationReason: "unknown",
+        syncedAt: hoursAgo(71.5),
+        hotelMentioned: null,
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hallo... ich... [unverständlich]... Hotel...", time: 5 },
+        { role: "agent", message: "Leider kann ich Sie sehr schlecht verstehen. Könnten Sie das bitte wiederholen?", time: 10 },
+      ],
+      feedback: null,
+    },
+
+    // ── Call 11: Elvis the cat – fun inquiry ────────────────────────
+    {
+      call: {
+        id: "conv_sample_011",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(96),
+        duration: 70,
+        summary: "Gast fragte nach dem Hotelkater Elvis im DORMERO Hotel Dessau. Geschichte des adoptierten Katers erzählt. Gast war begeistert.",
+        callSuccessful: "success",
+        messageCount: 6,
+        costCredits: 0.08,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(95.5),
+        hotelMentioned: "DORMERO Hotel Dessau-Rosslau",
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Hi! Ich habe gehört, dass im DORMERO Dessau eine Katze lebt. Stimmt das?", time: 4 },
+        { role: "agent", message: "Ja, das stimmt! Lassen Sie mich Ihnen von unserem Elvis erzählen.", time: 10 },
+        { role: "agent", message: "Im DORMERO Hotel Dessau lebt Kater Elvis. Er musste von einem Stammgast ins Tierheim, und wir haben ihn direkt adoptiert und in unsere DORMERO Familie aufgenommen. Er ist ein richtig stattlicher Kater, der gern die Gäste umgarnt, um sich Streicheleinheiten abzuholen.", time: 15 },
+        { role: "user", message: "Ach wie süß! Das ist ja eine tolle Geschichte. Dann freue ich mich, ihn kennenzulernen!", time: 35 },
+        { role: "agent", message: "Elvis freut sich bestimmt auch! Kann ich Ihnen sonst noch weiterhelfen?", time: 40 },
+        { role: "user", message: "Nein, das war alles. Danke und tschüss!", time: 48 },
+        { role: "agent", message: "Auf Wiederhören und bis bald!", time: 50 },
+      ],
+      feedback: { rating: 5, comment: null, source: "voice" as const },
+    },
+
+    // ── Call 12: Group reservation inquiry ──────────────────────────
+    {
+      call: {
+        id: "conv_sample_012",
+        agentId: AGENT_ID,
+        status: "done",
+        startTime: hoursAgo(120),
+        duration: 60,
+        summary: "Gast fragte nach Gruppenreservierung für 15 Zimmer. An groups@dormero.de verwiesen.",
+        callSuccessful: "success",
+        messageCount: 6,
+        costCredits: 0.07,
+        terminationReason: "user_hangup",
+        syncedAt: hoursAgo(119),
+        hotelMentioned: null,
+        complaintCategory: null,
+      },
+      transcript: [
+        { role: "agent", message: "Guten Tag und willkommen bei DORMERO Hotels! Mein Name ist Viktoria. Wie kann ich Ihnen behilflich sein?", time: 0 },
+        { role: "user", message: "Guten Tag, wir brauchen 15 Zimmer für eine Firmenreise. Wie läuft das?", time: 5 },
+        { role: "agent", message: "Für Gruppenreservierungen ab 10 Zimmern wenden Sie sich bitte per E-Mail an groups@dormero.de. Nennen Sie dabei bitte das gewünschte Hotel und Ihre Wunschtermine. Unser Gruppenteam erstellt Ihnen dann ein individuelles Angebot.", time: 12 },
+        { role: "user", message: "Gibt es da Gruppenrabatte?", time: 28 },
+        { role: "agent", message: "Die genauen Konditionen hängen von Hotel, Zeitraum und Zimmerzahl ab. Das Gruppenteam kann Ihnen da ein maßgeschneidertes Angebot machen. Schreiben Sie einfach Ihre Anforderungen in die E-Mail.", time: 32 },
+        { role: "user", message: "Okay, mache ich. Danke!", time: 42 },
+        { role: "agent", message: "Wie zufrieden waren Sie mit diesem Gespräch, von 1 bis 5?", time: 45 },
+        { role: "user", message: "4, danke!", time: 48 },
+        { role: "agent", message: "Vielen Dank! Viel Erfolg bei der Planung. Auf Wiederhören!", time: 50 },
+      ],
+      feedback: { rating: 4, comment: null, source: "voice" as const },
+    },
+  ];
+
+  // Insert calls, transcripts, and feedback
+  for (const sample of sampleCalls) {
+    await db.insert(calls).values(sample.call);
+
+    if (sample.transcript.length > 0) {
+      await db.insert(callTranscripts).values(
+        sample.transcript.map((t, i) => ({
+          id: `${sample.call.id}-msg-${String(i).padStart(3, "0")}`,
+          callId: sample.call.id,
+          role: t.role,
+          message: t.message,
+          timeInCallSecs: t.time,
+          sortOrder: i,
+        }))
+      );
+    }
+
+    if (sample.feedback) {
+      await db.insert(callFeedback).values({
+        id: `${sample.call.id}-fb`,
+        callId: sample.call.id,
+        rating: sample.feedback.rating,
+        comment: sample.feedback.comment,
+        source: sample.feedback.source,
+        createdAt: (sample.call.startTime + sample.call.duration) * 1000,
+        updatedAt: (sample.call.startTime + sample.call.duration) * 1000,
+      });
+    }
+  }
+
+  const ratedCalls = sampleCalls.filter(s => s.feedback?.rating).length;
+  const totalMessages = sampleCalls.reduce((sum, s) => sum + s.transcript.length, 0);
+
   console.log("Seed completed successfully.");
   console.log(`  Hotels: 2 (Coburg, Dessau)`);
   console.log(`  Knowledge entries: ${allEntries.length} total`);
   console.log(`    Chain-wide: ${chainEntries.length}`);
   console.log(`    Coburg: ${coburgEntries.length}`);
   console.log(`    Dessau: ${dessauEntries.length}`);
+  console.log(`  Calls: ${sampleCalls.length} (${ratedCalls} with ratings, ${totalMessages} transcript messages)`);
 }
 
 seed().catch((err) => {
