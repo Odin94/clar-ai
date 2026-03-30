@@ -7,122 +7,45 @@ Voice AI control centre for Dormero Hotels. Viktoria handles Tier-1 guest inquir
 ## Quick Start
 
 ### Prerequisites
-- Node.js 20+
+- Node.js 22.22.2+ (developed on Node.js 24.12.0 on Windows, tested with Node.js 22.22.2 on Ubuntu)
 - An [ElevenLabs](https://elevenlabs.io) account (free tier)
 - [ngrok](https://ngrok.com) (only needed to connect ElevenLabs agent tools to your local server)
 
-### 1. Install dependencies
+### 1. Configure env
+* Create `.env` from `.env.example` in `apps/server` and `apps/web`
+* Fill in your configuration. Make sure `VITE_BACKEND_API_KEY` and `BACKEND_API_KEY` have the same value; you can pick any value of your choice.
 
-```bash
-npm install
-```
-
-### 2. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```
-DATABASE_URL=./data/clarai.db
-ELEVENLABS_API_KEY=<your key from elevenlabs.io/api-key>
-ELEVENLABS_AGENT_ID=<agent id from ElevenLabs dashboard>
-PORT=3001
-```
-
-### 3. Seed the database
-
-Populates one hotel (Dormero Hotel Coburg) with facilities, room types, and chain-wide policies. Idempotent – safe to run multiple times.
-
-```bash
-npm run db:seed
-```
-
-### 4. Start the backend
-
-```bash
-npm run dev:server
-```
-
-Server starts at `http://localhost:3001`.
-
-### 5. Start the frontend
-
-```bash
-npm run dev:web
-```
-
-UI available at `http://localhost:5173`.
+### 2. Setup
+* `npm install`
+* `npm run db:generate`
+* `npm run db:migrate`
+* `npm run db:seed` - this is optional and creates sample data
+* `npm run dev:server` to run the backend
+* `npm run dev:web` to run the frontend
+* `npm test --workspace=apps/server` to run tests
 
 ---
 
-## ElevenLabs Integration
-
-### Expose the backend via ngrok
-
-ElevenLabs needs a public URL to call your webhook tool and receive post-call webhooks.
-
-```bash
-ngrok http 3001
-```
-
-Copy the `https://...ngrok-free.app` URL.
-
-### Configure the agent
-
-In the ElevenLabs dashboard (or via API), configure the agent with:
-
-**System prompt:**
-```
-You are Viktoria, the helpful virtual assistant for Dormero Hotels. You are the fancy, direct and helpful customer service agent handling inbound requests, reservations and complaints from customers. You use the tools at your disposal to access general Dormero knowledge and hotel details to provide factual answers. You keep your answers short to around 2-3 sentences max.
-```
-
-**Server tool – `get_hotel_info`:**
-- Type: `webhook`
-- Method: `POST`
-- URL: `https://<your-ngrok-url>/api/knowledge/query`
-- Description: "Look up hotel information, facilities, room types, or policies for a Dormero hotel"
-- Request body schema:
-  ```json
-  {
-    "type": "object",
-    "properties": {
-      "hotel_name": {
-        "type": "string",
-        "description": "Name or city of the hotel (e.g. 'Coburg', 'Dormero Hotel Berlin')"
-      },
-      "topic": {
-        "type": "string",
-        "description": "Topic to look up: parking, breakfast, pets, cancellation, check-in, wellness, wifi, rooms"
-      }
-    },
-    "required": ["topic"]
-  }
-  ```
-
-**Post-call webhook** (in agent settings → Workflows):
-- URL: `https://<your-ngrok-url>/api/elevenlabs/webhook`
-- This fires after every call and automatically persists call logs + any voice-collected feedback.
-
-**Data Collection** (in agent settings → Analysis):
-- Add field: `customer_rating` (Integer) – "Extract the customer's satisfaction rating on a 1–5 scale. Return null if not given."
-- Add field: `customer_comment` (String) – "Extract the customer's feedback comment. Return null if not given."
+### 3. Elevenlabs setup
+* After running backend, expose with `ngrok http 3001` (assuming you didn't change the port)
+* Create `backend_api_key` and `base_url` env vars in https://elevenlabs.io/app/developers/environment-variables
+  * `backend_api_key` you have defined yourself in `./apps/server/.env`
+  * `base_url` you get from `ngrok`. Note that this env var should NOT include `https://`
+* Create an agent with the "customer support" preset, use system prompt from `./elevenlabs-tools/SystemPrompt.txt`
+* Create webhook tools from `./elevenlabs-tools` json files
+* Add the tools to your agent in the agent settings
+* (optional) Upload `./dormero-facts/all_hotels.md` to the agent's knowledge base
 
 ---
 
-## Running Tests
 
-```bash
-npm test --workspace=apps/server
-```
-
-42 tests across 4 suites:
-- `knowledge.test.ts` – query logic (parking, policies, rooms, check-in, fallback)
-- `calls.test.ts` – GET /api/calls (pagination, filters, sort) + GET /api/calls/:id
-- `feedback.test.ts` – POST feedback (create, upsert, validation, 404)
-- `webhook.test.ts` – ElevenLabs post-call webhook (persistence, transcripts, voice feedback, idempotency)
+## Decision Summary
+* Typescript because it's what I'm most familiar with, because it gives rigid type support where I want it and is flexible where I don't want rigidity, and it allows us to use the same language for backend and frontend, which is nice
+* React + tailwind + shadcn because it's what I'm most familiar with, it has a great eco system and it works well with LLMs
+* Fastify because it works well with typescript and is easy to set up and configure, has no overhead
+* SQLite + Drizzle because it provides a smooth, low overhead development experience and allows us to easily switch to a "real" database down the line
+* Storing calls in our DB (instead of eg. live fetching them from ElevenLabs every time) so we can interact / rate / flag independently
+* Single backend service because complexity is too low to split into "CallLogService", "RatingService", "FlaggingService" etc.
 
 ---
 
@@ -131,53 +54,15 @@ npm test --workspace=apps/server
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `GET` | `/api/calls` | List calls. Params: `page`, `pageSize`, `status`, `search` |
-| `GET` | `/api/calls/:id` | Call detail with transcript + feedback |
-| `POST` | `/api/calls/:id/feedback` | Save rating (1–5) and/or comment |
+| `GET` | `/api/calls` | List calls. Params: `page`, `pageSize`, `status`, `search`, `from`, `to`, `sortBy`, `sortDir` |
+| `GET` | `/api/calls/:id` | Call detail with transcript, feedback, and flag |
+| `POST` | `/api/calls/:id/feedback` | Save customer rating (1–5) and/or comment |
+| `GET` | `/api/feedback` | List feedback entries. Params: `page`, `pageSize`, `rating`, `hasComment` |
+| `POST` | `/api/calls/:id/flag` | Create or update an admin flag (`positive`, `comment`) |
+| `DELETE` | `/api/calls/:id/flag` | Remove an admin flag |
+| `GET` | `/api/flags` | List flagged calls. Params: `page`, `pageSize`, `positive` |
+| `GET` | `/api/stats` | Aggregate dashboard metrics |
+| `GET` | `/api/stats/trends` | 7-day daily trend breakdown |
 | `POST` | `/api/sync` | Pull latest conversations from ElevenLabs |
 | `POST` | `/api/knowledge/query` | Agent webhook tool – hotel knowledge lookup |
-| `POST` | `/webhook/callLogEntry` | ElevenLabs post-call webhook receiver |
-
----
-
-## Architecture Decisions
-
-### Why a webhook tool instead of ElevenLabs' built-in Knowledge Base?
-
-The built-in KB uses vector similarity search over documents — good for unstructured content, but imprecise for structured hotel data. A webhook tool lets the agent query our local SQLite database with exact matching, giving factual answers (e.g. exact parking price, height limit) rather than inferred ones.
-
-For 60+ hotels, the pipeline would be: DB → generate per-hotel markdown docs → upload to ElevenLabs KB (for the static layer) + keep the webhook tool for live/dynamic facts (current offers, room availability, maintenance notices).
-
-### Why local sync over live proxy for call logs?
-
-Storing calls locally means:
-- Feedback can be persisted without ElevenLabs knowing about it
-- The dashboard is fast even if the ElevenLabs API is slow or rate-limited
-- We can run full-text search and custom filters without API limitations
-
-The primary path is the **post-call webhook** (near real-time), with **on-demand sync** as a fallback if the ngrok tunnel was down.
-
-### Why SQLite?
-
-Zero infrastructure for a POC. Drizzle ORM makes the migration to Postgres trivial — just change the dialect in `drizzle.config.ts` and swap the driver. The schema design (nullable `hotel_id` on policies, `metadata` JSON column on facilities) works identically in both databases.
-
-### Stack summary
-
-| Layer | Choice | Reason |
-|-------|--------|--------|
-| DB | SQLite + Drizzle ORM | Zero infra, type-safe, trivially portable |
-| Backend | Fastify | Fastest Node HTTP framework, great TypeScript support |
-| Validation | Zod | Schema-first, works at runtime and compile time |
-| Frontend | React + Vite + Tailwind + shadcn/ui | Fast iteration, consistent design system |
-| Data fetching | TanStack Query | Caching, background refetch, mutation state |
-| Testing | Vitest + Fastify inject() | In-process HTTP tests, no network overhead |
-
-
-## Elevenlabs setup
-* After running backend, expose with `ngrok http 3001` (assuming you didn't change the port)
-* Create `backend_api_key` and `base_url` env vars in https://elevenlabs.io/app/developers/environment-variables
-  * `backend_api_key` you can define yourself in `apps/server/.env`
-  * `base_url` you get from `ngrok`, but note that this env var should NOT include `https://`
-* Create an agent with a system prompt of your choice
-* Create webhook tools from `./elevenlabs-tools` json files
-* Add the tools to your agent
+| `POST` | `/api/webhook/callLogEntry` | ElevenLabs post-call webhook receiver |

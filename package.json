@@ -1,7 +1,10 @@
 {
   "name": "clar-ai",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev:server": "npm run dev --workspace=apps/server",
     "dev:web": "npm run dev --workspace=apps/web",
@@ -13,7 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "engines": {
-    "node": ">=20.12.0"
+    "node": ">=22.22.2"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
