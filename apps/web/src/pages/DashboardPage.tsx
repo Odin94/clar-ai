@@ -179,7 +179,7 @@ const TrendCard = ({ config, data, loading }: TrendCardProps) => {
                   stroke="#94a3b8"
                   strokeDasharray="4 3"
                   strokeWidth={1.5}
-                  label={{ value: "Agent updated", position: "insideTopLeft", fontSize: 9, fill: "#94a3b8", dy: -10 }}
+                  label={{ value: "Agent updated", position: "insideTopLeft", fontSize: 9, fill: "#94a3b8", dy: 4 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -300,7 +300,7 @@ const FeedbackBreakdownChart = ({ data, loading }: FeedbackBreakdownChartProps) 
                 stroke="#94a3b8"
                 strokeDasharray="4 3"
                 strokeWidth={1.5}
-                label={{ value: "Agent updated", position: "insideTopLeft", fontSize: 10, fill: "#94a3b8", dy: -10 }}
+                label={{ value: "Agent updated", position: "insideTopLeft", fontSize: 10, fill: "#94a3b8", dy: 4 }}
               />
             </BarChart>
           </ResponsiveContainer>
