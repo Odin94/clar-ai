@@ -9,7 +9,7 @@ type DB = Awaited<ReturnType<typeof getDb>>
  * entry topics in our DB. Handles both German and English terms since the
  * ElevenLabs agent may formulate in either language.
  */
-function resolveTopics(topic: string): string[] {
+function resolveTopics(topic: string): string[] | null {
     const t = topic.toLowerCase()
 
     const rules: [RegExp, string[]][] = [
@@ -63,13 +63,10 @@ function resolveTopics(topic: string): string[] {
         if (pattern.test(t)) return topics
     }
 
-    // Fallback: return broad info topics so the agent gets something useful
-    return ["hotel_info", "contact", "reservation"]
+    return null
 }
 
 export async function queryKnowledge(db: DB, hotelName: string | undefined, topic: string): Promise<string> {
-    const topics = resolveTopics(topic)
-
     // ── Find hotel (optional) ─────────────────────────────────────────
     let hotel: typeof hotels.$inferSelect | undefined
 
@@ -86,6 +83,17 @@ export async function queryKnowledge(db: DB, hotelName: string | undefined, topi
             console.warn(`[knowledge] Hotel nicht gefunden: "${hotelName}", topic="${topic}"`)
             return `Leider habe ich keine Informationen zu "${hotelName}" in unserer Wissensdatenbank. Bitte kontaktieren Sie das Hotel direkt oder unsere Reservierung unter +49 30 20213300.`
         }
+    }
+
+    const contactHint = hotel?.phone || hotel?.email
+        ? `Bitte wenden Sie sich direkt an das Hotel${hotel.phone ? ` unter ${hotel.phone}` : ""}${hotel.email ? ` oder per E-Mail an ${hotel.email}` : ""}.`
+        : `Bitte wenden Sie sich an unsere Reservierung unter +49 30 20213300 oder per E-Mail an reservierung@dormero.de.`
+
+    const topics = resolveTopics(topic)
+
+    if (!topics) {
+        console.warn(`[knowledge] Kein Topic erkannt: "${topic}"`)
+        return `Zu diesem Thema habe ich leider keine Informationen. ${contactHint}`
     }
 
     // ── Query knowledge entries ───────────────────────────────────────
@@ -108,7 +116,7 @@ export async function queryKnowledge(db: DB, hotelName: string | undefined, topi
 
         const hotelLabel = hotel ? hotel.name : "unseren Hotels"
         console.warn(`[knowledge] Keine Daten: hotel="${hotelLabel}", topic="${topic}"`)
-        return `Zu "${topic}" habe ich leider keine spezifischen Informationen für ${hotelLabel}. Bitte wenden Sie sich an unsere Reservierung unter +49 30 20213300 oder per E-Mail an reservierung@dormero.de.`
+        return `Zu "${topic}" habe ich leider keine spezifischen Informationen für ${hotelLabel}. ${contactHint}`
     }
 
     // Prefer hotel-specific entries over chain-wide ones if both exist
