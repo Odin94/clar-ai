@@ -1,13 +1,62 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Star, MessageSquare, ChevronRight } from "lucide-react";
+import { Star, MessageSquare, ChevronRight, FileJson } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
-import { api, type FeedbackEntry } from "@/lib/api";
+import { toast } from "sonner";
+import { api, type FeedbackEntry, type Call } from "@/lib/api";
 import { StarRating } from "@/components/StarRating";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+function downloadJson(feedback: FeedbackEntry[], calls: Call[]) {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    calls: calls.map((c) => ({
+      id: c.id,
+      agentId: c.agentId,
+      startTime: new Date(c.startTime * 1000).toISOString(),
+      duration: c.duration,
+      status: c.status,
+      callSuccessful: c.callSuccessful,
+      messageCount: c.messageCount,
+      costCredits: c.costCredits,
+      terminationReason: c.terminationReason,
+      hotelMentioned: c.hotelMentioned,
+      complaintCategory: c.complaintCategory,
+      summary: c.summary,
+      feedback: c.feedback ? {
+        rating: c.feedback.rating,
+        comment: c.feedback.comment,
+        source: c.feedback.source,
+        createdAt: new Date(c.feedback.createdAt).toISOString(),
+      } : null,
+    })),
+    feedback: feedback.map((e) => ({
+      id: e.id,
+      callId: e.callId,
+      rating: e.rating,
+      comment: e.comment,
+      source: e.source,
+      createdAt: new Date(e.createdAt).toISOString(),
+      updatedAt: new Date(e.updatedAt).toISOString(),
+      call: {
+        startTime: new Date(e.call.startTime * 1000).toISOString(),
+        hotelMentioned: e.call.hotelMentioned,
+        summary: e.call.summary,
+      },
+    })),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function formatDate(unix: number): string {
   return new Date(unix * 1000).toLocaleString("en-GB", {
@@ -25,6 +74,15 @@ export function FeedbackPage() {
   const [commentFilter, setCommentFilter] = useState<"yes" | "no" | undefined>();
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+
+  const exportMutation = useMutation({
+    mutationFn: () => Promise.all([api.getAllFeedback(), api.getAllCalls()]),
+    onSuccess: ([feedbackRes, callsRes]) => {
+      downloadJson(feedbackRes.feedback, callsRes.calls);
+      toast.success(`Exported ${callsRes.calls.length} calls and ${feedbackRes.feedback.length} feedback entries.`);
+    },
+    onError: (err: Error) => toast.error(`Export failed: ${err.message}`),
+  });
 
   function handleRating(star: number) {
     setRatingFilter((prev) => (prev === star ? undefined : star));
@@ -53,11 +111,22 @@ export function FeedbackPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Feedback</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {data ? `${data.total} feedback entr${data.total === 1 ? "y" : "ies"}` : "Guest feedback from voice calls"}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Feedback</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {data ? `${data.total} feedback entr${data.total === 1 ? "y" : "ies"}` : "Guest feedback from voice calls"}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => exportMutation.mutate()}
+          disabled={exportMutation.isPending}
+          className="gap-2"
+        >
+          <FileJson size={14} />
+          {exportMutation.isPending ? "Exporting…" : "Export JSON"}
+        </Button>
       </div>
 
       {/* Filters */}

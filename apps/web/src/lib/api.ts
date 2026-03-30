@@ -89,6 +89,20 @@ export interface StatsResponse {
   ratedCount: number;
 }
 
+export type DailyStatPoint = {
+  date: string;
+  calls: number;
+  successRate: number;
+  avgRating: number | null;
+  avgDurationSecs: number | null;
+  ratedCount: number;
+  commentCount: number;
+};
+
+export type TrendsResponse = {
+  trends: DailyStatPoint[];
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...options,
@@ -134,4 +148,13 @@ export const api = {
   },
   sync: () => request<SyncResponse>("/sync", { method: "POST" }),
   getStats: () => request<StatsResponse>("/stats"),
+  getStatsTrends: () => request<TrendsResponse>("/stats/trends"),
+  getAllFeedback: () => {
+    const q = new URLSearchParams({ pageSize: "1000" });
+    return request<FeedbackResponse>(`/feedback?${q}`);
+  },
+  getAllCalls: () => {
+    const q = new URLSearchParams({ pageSize: "1000" });
+    return request<CallsResponse>(`/calls?${q}`);
+  },
 };
