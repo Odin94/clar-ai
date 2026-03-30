@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, desc, isNotNull, isNull, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { eq, desc, isNotNull, isNull, sql, and } from "drizzle-orm";
 import { calls, callFeedback } from "@clarai/db";
 
 const bodySchema = z.object({
@@ -25,27 +26,22 @@ export async function feedbackRoutes(app: FastifyInstance) {
     const db = app.db;
 
     try {
-      const conditions: ReturnType<typeof eq>[] = [];
+      const conditions: SQL[] = [];
 
       if (query.rating) {
         const r = parseInt(query.rating, 10);
         if (!isNaN(r) && r >= 1 && r <= 5) {
-          conditions.push(eq(callFeedback.rating, r) as ReturnType<typeof eq>);
+          conditions.push(eq(callFeedback.rating, r));
         }
       }
 
       if (query.hasComment === "yes") {
-        conditions.push(isNotNull(callFeedback.comment) as ReturnType<typeof eq>);
+        conditions.push(isNotNull(callFeedback.comment));
       } else if (query.hasComment === "no") {
-        conditions.push(isNull(callFeedback.comment) as ReturnType<typeof eq>);
+        conditions.push(isNull(callFeedback.comment));
       }
 
-      const whereClause =
-        conditions.length === 0
-          ? undefined
-          : conditions.length === 1
-          ? conditions[0]
-          : (conditions.reduce((a, b) => sql`${a} AND ${b}` as unknown as ReturnType<typeof eq>));
+      const whereClause = conditions.length === 0 ? undefined : and(...conditions);
 
       const rows = await db
         .select({

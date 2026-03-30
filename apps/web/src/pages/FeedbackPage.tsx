@@ -5,6 +5,7 @@ import { Star, MessageSquare, ChevronRight, FileJson } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, type FeedbackEntry, type Call } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import { StarRating } from "@/components/StarRating";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,15 +45,6 @@ function downloadJson(calls: Call[]) {
   URL.revokeObjectURL(url);
 }
 
-function formatDate(unix: number): string {
-  return new Date(unix * 1000).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function FeedbackPage() {
   const navigate = useNavigate();

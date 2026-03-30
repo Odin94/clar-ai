@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { SQL } from "drizzle-orm";
 import { eq, desc, asc, like, or, sql, gte, lte, and } from "drizzle-orm";
 import { calls, callTranscripts, callFeedback, callFlags } from "@clarai/db";
 
@@ -25,7 +26,7 @@ export async function callsRoutes(app: FastifyInstance) {
 
     try {
       // Build where conditions
-      const conditions: ReturnType<typeof eq>[] = [];
+      const conditions: SQL[] = [];
 
       if (query.status) {
         conditions.push(eq(calls.callSuccessful, query.status));
@@ -33,30 +34,20 @@ export async function callsRoutes(app: FastifyInstance) {
 
       if (query.search) {
         const pattern = `%${query.search}%`;
-        conditions.push(
-          or(
-            like(calls.id, pattern),
-            like(calls.summary, pattern)
-          ) as ReturnType<typeof eq>
-        );
+        conditions.push(or(like(calls.id, pattern), like(calls.summary, pattern))!);
       }
 
       // Date range — accept ISO strings (YYYY-MM-DD) or raw Unix seconds
       if (query.from) {
         const fromSecs = parseTimestamp(query.from);
-        if (fromSecs !== null) conditions.push(gte(calls.startTime, fromSecs) as ReturnType<typeof eq>);
+        if (fromSecs !== null) conditions.push(gte(calls.startTime, fromSecs));
       }
       if (query.to) {
         const toSecs = parseTimestamp(query.to, true);
-        if (toSecs !== null) conditions.push(lte(calls.startTime, toSecs) as ReturnType<typeof eq>);
+        if (toSecs !== null) conditions.push(lte(calls.startTime, toSecs));
       }
 
-      const whereClause =
-        conditions.length === 0
-          ? undefined
-          : conditions.length === 1
-          ? conditions[0]
-          : and(...conditions) as ReturnType<typeof eq>;
+      const whereClause = conditions.length === 0 ? undefined : and(...conditions);
 
       // Resolve sort column and direction
       const sortDir = query.sortDir === "asc" ? "asc" : "desc";

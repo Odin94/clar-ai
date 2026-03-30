@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { calls, callTranscripts } from "@clarai/db";
 import { elevenLabsClient } from "../services/elevenlabs.js";
 import { env } from "../env.js";

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Clock, Calendar, Hash, DollarSign, Save, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
@@ -12,14 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StarRating } from "@/components/StarRating";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
-function formatDuration(secs: number | null): string {
-  if (!secs) return "—";
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 function formatDate(unix: number): string {
   return new Date(unix * 1000).toLocaleString("en-GB", {
@@ -50,22 +44,13 @@ export function CallDetailPage() {
     enabled: !!id,
   });
 
-  // Flag editor state
+  // Flag editor state — only holds pending edits; server data is used when not dirty
   const [flagPositive, setFlagPositive] = useState<boolean | null>(null);
   const [flagComment, setFlagComment] = useState("");
   const [isFlagDirty, setIsFlagDirty] = useState(false);
 
-  useEffect(() => {
-    if (data?.flag) {
-      setFlagPositive(data.flag.positive);
-      setFlagComment(data.flag.comment ?? "");
-      setIsFlagDirty(false);
-    } else if (data && !data.flag) {
-      setFlagPositive(null);
-      setFlagComment("");
-      setIsFlagDirty(false);
-    }
-  }, [data?.flag]);
+  const displayFlagPositive = isFlagDirty ? flagPositive : (data?.flag?.positive ?? null);
+  const displayFlagComment = isFlagDirty ? flagComment : (data?.flag?.comment ?? "");
 
   const flagMutation = useMutation({
     mutationFn: (payload: { positive: boolean; comment?: string }) =>
@@ -95,8 +80,8 @@ export function CallDetailPage() {
   });
 
   const handleSaveFlag = () => {
-    if (flagPositive === null) return;
-    flagMutation.mutate({ positive: flagPositive, comment: flagComment || undefined });
+    if (displayFlagPositive === null) return;
+    flagMutation.mutate({ positive: displayFlagPositive, comment: displayFlagComment || undefined });
   };
 
   if (isError) {
@@ -307,7 +292,7 @@ export function CallDetailPage() {
                         onClick={() => { setFlagPositive(true); setIsFlagDirty(true); }}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium border transition-colors",
-                          flagPositive === true
+                          displayFlagPositive === true
                             ? "bg-green-600 text-white border-green-600"
                             : "bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
                         )}
@@ -319,7 +304,7 @@ export function CallDetailPage() {
                         onClick={() => { setFlagPositive(false); setIsFlagDirty(true); }}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium border transition-colors",
-                          flagPositive === false
+                          displayFlagPositive === false
                             ? "bg-red-600 text-white border-red-600"
                             : "bg-white text-gray-600 border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
                         )}
@@ -339,7 +324,7 @@ export function CallDetailPage() {
                     <Textarea
                       id="flag-comment"
                       placeholder="Add a note about this flag…"
-                      value={flagComment}
+                      value={displayFlagComment}
                       onChange={(e) => { setFlagComment(e.target.value); setIsFlagDirty(true); }}
                       rows={3}
                       className="text-sm resize-none"
@@ -349,10 +334,10 @@ export function CallDetailPage() {
                   <div className="flex gap-2">
                     <Button
                       onClick={handleSaveFlag}
-                      disabled={!isFlagDirty || flagPositive === null || flagMutation.isPending}
+                      disabled={!isFlagDirty || displayFlagPositive === null || flagMutation.isPending}
                       className={cn(
                         "flex-1",
-                        isFlagDirty && flagPositive !== null
+                        isFlagDirty && displayFlagPositive !== null
                           ? "bg-dormero-700 hover:bg-dormero-800 text-white"
                           : "bg-gray-100 text-gray-400 cursor-not-allowed"
                       )}

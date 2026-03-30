@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi, ChevronUp, ChevronDown, ChevronsUpDown, ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Call } from "@/lib/api";
+import { formatDuration, formatDate } from "@/lib/utils";
 import { useCallsStream } from "@/hooks/useCallsStream";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,22 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StarRating } from "@/components/StarRating";
 
-function formatDuration(secs: number | null): string {
-  if (!secs) return "—";
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
-
-function formatDate(unix: number): string {
-  return new Date(unix * 1000).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 type SortKey = "startTime" | "duration" | "callSuccessful" | "summary" | "rating" | "messageCount";
 

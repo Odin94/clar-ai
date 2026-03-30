@@ -16,7 +16,7 @@ import { PhoneCall, CheckCircle, Star, Clock, TrendingUp, MessageSquare } from "
 import { api, type DailyStatPoint } from "@/lib/api";
 import { StatsBar } from "@/components/StatsBar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
 const DORMERO = "#8b2032";
 
@@ -36,12 +36,6 @@ function pct(v: number) {
   return `${Math.round(v * 100)}%`;
 }
 
-function fmtDuration(secs: number | null) {
-  if (!secs) return "—";
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 type ChartConfig = {
   title: string;
@@ -85,7 +79,7 @@ const CHART_CONFIGS: ChartConfig[] = [
     icon: Clock,
     dataKey: "avgDurationSecs",
     color: "#6366f1",
-    formatValue: (v) => fmtDuration(v),
+    formatValue: (v) => formatDuration(v),
     formatTick: (v) => (v >= 60 ? `${Math.round(v / 60)}m` : `${v}s`),
   },
 ];
@@ -158,8 +152,8 @@ const TrendCard = ({ config, data, loading }: TrendCardProps) => {
                     borderRadius: 8,
                     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                   }}
-                  formatter={(value: number | null) => [
-                    config.formatValue(value),
+                  formatter={(value) => [
+                    config.formatValue(typeof value === "number" ? value : null),
                     config.title,
                   ]}
                   labelStyle={{ color: "#6b7280", fontWeight: 500 }}

@@ -34,7 +34,7 @@ export interface DailyStatPoint {
 
 export async function statsRoutes(app: FastifyInstance) {
   // GET /stats/trends — 7-day daily breakdown
-  app.get("/stats/trends", async (_request, reply) => {
+  app.get("/stats/trends", async (request, reply) => {
     const db = app.db;
     const nowSecs = Math.floor(Date.now() / 1000);
 
@@ -83,12 +83,12 @@ export async function statsRoutes(app: FastifyInstance) {
 
       return reply.send({ trends: points });
     } catch (err) {
-      _request.log.error(err);
+      request.log.error(err);
       return reply.status(500).send({ error: "Failed to fetch trends" });
     }
   });
 
-  app.get("/stats", async (_request, reply) => {
+  app.get("/stats", async (request, reply) => {
     const db = app.db;
 
     const nowSecs = Math.floor(Date.now() / 1000);
@@ -135,7 +135,7 @@ export async function statsRoutes(app: FastifyInstance) {
 
       return reply.send(response);
     } catch (err) {
-      _request.log.error(err);
+      request.log.error(err);
       return reply.status(500).send({ error: "Failed to fetch stats" });
     }
   });

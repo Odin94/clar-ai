@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { SQL } from "drizzle-orm";
 import { eq, desc, sql } from "drizzle-orm";
 import { calls, callFlags } from "@clarai/db";
 
@@ -24,18 +25,15 @@ export async function flagsRoutes(app: FastifyInstance) {
     const db = app.db;
 
     try {
-      const conditions: ReturnType<typeof eq>[] = [];
+      const conditions: SQL[] = [];
 
       if (query.positive === "true") {
-        conditions.push(eq(callFlags.positive, 1) as ReturnType<typeof eq>);
+        conditions.push(eq(callFlags.positive, 1));
       } else if (query.positive === "false") {
-        conditions.push(eq(callFlags.positive, 0) as ReturnType<typeof eq>);
+        conditions.push(eq(callFlags.positive, 0));
       }
 
-      const whereClause =
-        conditions.length === 0
-          ? undefined
-          : conditions[0];
+      const whereClause = conditions.length === 0 ? undefined : conditions[0];
 
       const rows = await db
         .select({

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, ChevronRight, Flag, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { api, type FlagEntry, type Call } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,15 +42,6 @@ function downloadJson(calls: Call[]) {
   URL.revokeObjectURL(url);
 }
 
-function formatDate(unix: number): string {
-  return new Date(unix * 1000).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function FlagsPage() {
   const navigate = useNavigate();
