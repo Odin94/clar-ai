@@ -93,7 +93,7 @@ export async function queryKnowledge(db: DB, hotelName: string | undefined, topi
     const topicFilter = inArray(knowledgeEntries.topic, topics)
     const whereClause = hotel
         ? sql`(${knowledgeEntries.hotelId} = ${hotel.id} OR ${knowledgeEntries.hotelId} IS NULL) AND ${topicFilter}`
-        : topicFilter
+        : sql`${knowledgeEntries.hotelId} IS NULL AND ${topicFilter}`
 
     const entries = await db.select().from(knowledgeEntries).where(whereClause).orderBy(knowledgeEntries.sortOrder).limit(10)
 
@@ -163,7 +163,7 @@ async function keywordSearch(db: DB, hotelId: string | null, topic: string): Pro
 
     const whereClause = hotelId
         ? sql`(${knowledgeEntries.hotelId} = ${hotelId} OR ${knowledgeEntries.hotelId} IS NULL) AND (${or(...conditions)})`
-        : (or(...conditions) ?? sql`1=0`)
+        : sql`${knowledgeEntries.hotelId} IS NULL AND (${or(...conditions)})`
 
     return db.select({ content: knowledgeEntries.content }).from(knowledgeEntries).where(whereClause).limit(3)
 }

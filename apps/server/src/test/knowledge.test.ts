@@ -3,7 +3,7 @@
  * Uses an in-memory SQLite DB seeded with one hotel.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestApp, seedKnowledgeBase } from "./helpers.js";
+import { createTestApp, seedKnowledgeBase, schema } from "./helpers.js";
 import { queryKnowledge } from "../services/knowledge.js";
 import type { TestApp } from "./helpers.js";
 
@@ -80,6 +80,30 @@ describe("queryKnowledge – wifi / wellness", () => {
   it("returns wellness info", async () => {
     const answer = await queryKnowledge(ctx.db, "Coburg", "Sauna");
     expect(answer).toMatch(/Sauna|Wellness/i);
+  });
+});
+
+describe("queryKnowledge – no-hotel scope isolation", () => {
+  beforeAll(async () => {
+    await ctx.db.insert(schema.knowledgeEntries).values({
+      id: "ke_hotel_pet_coburg_test",
+      hotelId: "hotel_coburg_test",
+      topic: "hotel_pet",
+      content: "Im DORMERO Hotel Coburg lebt Schildkröte Hildegard.",
+      keywords: "maskott,tier,haustier",
+    });
+  });
+
+  it("without hotel: returns only chain-wide pet entries, not hotel-specific", async () => {
+    const answer = await queryKnowledge(ctx.db, undefined, "Haustier");
+    expect(answer).not.toMatch(/Hildegard/);
+    expect(answer).toMatch(/Haustier|gratis/i);
+  });
+
+  it("with hotel: includes both hotel-specific and chain-wide pet entries", async () => {
+    const answer = await queryKnowledge(ctx.db, "DORMERO Hotel Coburg", "Haustier");
+    expect(answer).toMatch(/Hildegard/);
+    expect(answer).toMatch(/Haustier|gratis/i);
   });
 });
 
