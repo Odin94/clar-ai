@@ -229,10 +229,9 @@ describe("POST /api/webhook/callLogEntry", () => {
             method: "POST",
             url: "/api/webhook/callLogEntry",
             headers: authHeaders,
-            payload: { type: "some_other_event", data: {} },
+            payload: { type: "some_other_event", data: { conversation_id: "wh_unknown_event", agent_id: "agent_abc" } },
         })
-        // Should still return 200 (fire-and-forget)
-        expect(res.statusCode).toBe(200)
+        expect(res.statusCode).toBe(400)
     })
 
     it("handles empty transcript gracefully", async () => {
