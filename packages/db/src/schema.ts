@@ -77,3 +77,12 @@ export const callFeedback = sqliteTable("call_feedback", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const callFlags = sqliteTable("call_flags", {
+  id: text("id").primaryKey(),
+  callId: text("call_id").notNull().references(() => calls.id).unique(),
+  positive: integer("positive").notNull(), // 1 = positive, 0 = negative
+  comment: text("comment"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});

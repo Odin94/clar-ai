@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Calendar, Hash, DollarSign, Save } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Hash, DollarSign, Save, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -50,32 +50,53 @@ export function CallDetailPage() {
     enabled: !!id,
   });
 
-  const [rating, setRating] = useState<number | null>(null);
-  const [comment, setComment] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
+  // Flag editor state
+  const [flagPositive, setFlagPositive] = useState<boolean | null>(null);
+  const [flagComment, setFlagComment] = useState("");
+  const [isFlagDirty, setIsFlagDirty] = useState(false);
 
   useEffect(() => {
-    if (data?.feedback) {
-      setRating(data.feedback.rating);
-      setComment(data.feedback.comment ?? "");
-      setIsDirty(false);
+    if (data?.flag) {
+      setFlagPositive(data.flag.positive);
+      setFlagComment(data.flag.comment ?? "");
+      setIsFlagDirty(false);
+    } else if (data && !data.flag) {
+      setFlagPositive(null);
+      setFlagComment("");
+      setIsFlagDirty(false);
     }
-  }, [data?.feedback]);
+  }, [data?.flag]);
 
-  const feedbackMutation = useMutation({
-    mutationFn: (payload: { rating?: number; comment?: string }) =>
-      api.saveFeedback(id!, payload),
+  const flagMutation = useMutation({
+    mutationFn: (payload: { positive: boolean; comment?: string }) =>
+      api.saveFlag(id!, payload),
     onSuccess: () => {
-      toast.success("Feedback saved");
-      setIsDirty(false);
+      toast.success("Flag saved");
+      setIsFlagDirty(false);
       queryClient.invalidateQueries({ queryKey: ["call", id] });
       queryClient.invalidateQueries({ queryKey: ["calls"] });
+      queryClient.invalidateQueries({ queryKey: ["flags"] });
     },
-    onError: (err: Error) => toast.error(`Failed to save: ${err.message}`),
+    onError: (err: Error) => toast.error(`Failed to save flag: ${err.message}`),
   });
 
-  const handleSave = () => {
-    feedbackMutation.mutate({ rating: rating ?? undefined, comment: comment || undefined });
+  const deleteFlagMutation = useMutation({
+    mutationFn: () => api.deleteFlag(id!),
+    onSuccess: () => {
+      toast.success("Flag removed");
+      setFlagPositive(null);
+      setFlagComment("");
+      setIsFlagDirty(false);
+      queryClient.invalidateQueries({ queryKey: ["call", id] });
+      queryClient.invalidateQueries({ queryKey: ["calls"] });
+      queryClient.invalidateQueries({ queryKey: ["flags"] });
+    },
+    onError: (err: Error) => toast.error(`Failed to remove flag: ${err.message}`),
+  });
+
+  const handleSaveFlag = () => {
+    if (flagPositive === null) return;
+    flagMutation.mutate({ positive: flagPositive, comment: flagComment || undefined });
   };
 
   if (isError) {
@@ -89,6 +110,7 @@ export function CallDetailPage() {
 
   const call = data?.call;
   const transcript = data?.transcript ?? [];
+  const hasExistingFlag = !!data?.flag;
 
   return (
     <div className="space-y-6">
@@ -232,61 +254,133 @@ export function CallDetailPage() {
           </div>
         </div>
 
-        {/* Feedback panel */}
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-gray-900">Feedback</h2>
-          <Card className="p-5 border border-gray-200 space-y-5">
-            {data?.feedback?.source === "voice" && (
-              <div className="bg-blue-50 text-blue-700 text-xs rounded-md px-3 py-2 border border-blue-100">
-                ✦ Collected automatically during call
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Rating</Label>
-              <StarRating
-                value={rating}
-                onChange={(r) => { setRating(r); setIsDirty(true); }}
-                size="lg"
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="comment" className="text-sm font-medium text-gray-700">
-                Comment
-              </Label>
-              <Textarea
-                id="comment"
-                placeholder="Add a note about this call…"
-                value={comment}
-                onChange={(e) => { setComment(e.target.value); setIsDirty(true); }}
-                rows={4}
-                className="text-sm resize-none"
-              />
-            </div>
-
-            <Button
-              onClick={handleSave}
-              disabled={!isDirty || feedbackMutation.isPending}
-              className={cn(
-                "w-full",
-                isDirty
-                  ? "bg-dormero-700 hover:bg-dormero-800 text-white"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        {/* Side panels */}
+        <div className="space-y-5">
+          {/* Customer Feedback — read-only */}
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-gray-900">Customer Feedback</h2>
+            <Card className="p-5 border border-gray-200 space-y-4">
+              {isLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : data?.feedback ? (
+                <>
+                  {data.feedback.source === "voice" && (
+                    <div className="bg-blue-50 text-blue-700 text-xs rounded-md px-3 py-2 border border-blue-100">
+                      ✦ Collected automatically during call
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Rating</Label>
+                    <StarRating value={data.feedback.rating} readonly size="lg" />
+                  </div>
+                  {data.feedback.comment && (
+                    <>
+                      <Separator />
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Comment</Label>
+                        <p className="text-sm text-gray-700">{data.feedback.comment}</p>
+                      </div>
+                    </>
+                  )}
+                  <div className="text-xs text-gray-400">
+                    Received {new Date(data.feedback.updatedAt * 1000).toLocaleDateString()}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No customer feedback for this call.</p>
               )}
-            >
-              <Save size={14} className="mr-2" />
-              {feedbackMutation.isPending ? "Saving…" : "Save Feedback"}
-            </Button>
+            </Card>
+          </div>
 
-            {data?.feedback && (
-              <div className="text-xs text-gray-400 text-center">
-                Last updated {new Date(data.feedback.updatedAt * 1000).toLocaleDateString()}
-              </div>
-            )}
-          </Card>
+          {/* Admin Flag */}
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-gray-900">Admin Flag</h2>
+            <Card className="p-5 border border-gray-200 space-y-4">
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Sentiment</Label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setFlagPositive(true); setIsFlagDirty(true); }}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium border transition-colors",
+                          flagPositive === true
+                            ? "bg-green-600 text-white border-green-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                        )}
+                      >
+                        <ThumbsUp size={14} />
+                        Positive
+                      </button>
+                      <button
+                        onClick={() => { setFlagPositive(false); setIsFlagDirty(true); }}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium border transition-colors",
+                          flagPositive === false
+                            ? "bg-red-600 text-white border-red-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                        )}
+                      >
+                        <ThumbsDown size={14} />
+                        Negative
+                      </button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="flag-comment" className="text-sm font-medium text-gray-700">
+                      Note <span className="text-gray-400 font-normal">(optional)</span>
+                    </Label>
+                    <Textarea
+                      id="flag-comment"
+                      placeholder="Add a note about this flag…"
+                      value={flagComment}
+                      onChange={(e) => { setFlagComment(e.target.value); setIsFlagDirty(true); }}
+                      rows={3}
+                      className="text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveFlag}
+                      disabled={!isFlagDirty || flagPositive === null || flagMutation.isPending}
+                      className={cn(
+                        "flex-1",
+                        isFlagDirty && flagPositive !== null
+                          ? "bg-dormero-700 hover:bg-dormero-800 text-white"
+                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      )}
+                    >
+                      <Save size={14} className="mr-2" />
+                      {flagMutation.isPending ? "Saving…" : "Save Flag"}
+                    </Button>
+                    {hasExistingFlag && (
+                      <Button
+                        variant="outline"
+                        onClick={() => deleteFlagMutation.mutate()}
+                        disabled={deleteFlagMutation.isPending}
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    )}
+                  </div>
+
+                  {data?.flag && (
+                    <div className="text-xs text-gray-400 text-center">
+                      Last updated {new Date(data.flag.updatedAt * 1000).toLocaleDateString()}
+                    </div>
+                  )}
+                </>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
     </div>

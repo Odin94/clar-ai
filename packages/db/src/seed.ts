@@ -1,73 +1,6 @@
 import { getDb } from "./index.js";
 import { hotels, knowledgeEntries, calls, callTranscripts, callFeedback } from "./schema.js";
 
-const DDL = `
-CREATE TABLE IF NOT EXISTS hotels (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  city TEXT NOT NULL,
-  address TEXT,
-  phone TEXT,
-  email TEXT,
-  description TEXT,
-  reception_hours TEXT,
-  check_in_time TEXT,
-  check_out_time TEXT,
-  total_rooms INTEGER,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS knowledge_entries (
-  id TEXT PRIMARY KEY,
-  hotel_id TEXT REFERENCES hotels(id),
-  topic TEXT NOT NULL,
-  subtopic TEXT,
-  content TEXT NOT NULL,
-  keywords TEXT,
-  sort_order INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_ke_hotel_topic ON knowledge_entries(hotel_id, topic);
-CREATE INDEX IF NOT EXISTS idx_ke_topic ON knowledge_entries(topic);
-
-CREATE TABLE IF NOT EXISTS calls (
-  id TEXT PRIMARY KEY,
-  agent_id TEXT NOT NULL,
-  status TEXT,
-  start_time INTEGER NOT NULL,
-  duration INTEGER,
-  summary TEXT,
-  call_successful TEXT,
-  message_count INTEGER,
-  cost_credits REAL,
-  termination_reason TEXT,
-  synced_at INTEGER,
-  hotel_mentioned TEXT,
-  complaint_category TEXT
-);
-
-CREATE TABLE IF NOT EXISTS call_transcripts (
-  id TEXT PRIMARY KEY,
-  call_id TEXT NOT NULL REFERENCES calls(id),
-  role TEXT NOT NULL,
-  message TEXT NOT NULL,
-  time_in_call_secs REAL,
-  sort_order INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS call_feedback (
-  id TEXT PRIMARY KEY,
-  call_id TEXT NOT NULL REFERENCES calls(id) UNIQUE,
-  rating INTEGER,
-  comment TEXT,
-  source TEXT NOT NULL DEFAULT 'manual',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-`;
-
 // ─── Helper ─────────────────────────────────────────────────────────
 let entryCounter = 0;
 function entry(
@@ -96,8 +29,6 @@ const DESSAU_ID = "hotel-dormero-dessau";
 
 async function seed() {
   const db = await getDb();
-  db.$client.exec(DDL);
-
   const now = Date.now();
 
   // Clean slate for knowledge data

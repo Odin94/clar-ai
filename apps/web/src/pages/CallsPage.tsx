@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { RefreshCw, Search, Phone, Clock, ChevronRight, Wifi, ChevronUp, ChevronDown, ChevronsUpDown, ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Call } from "@/lib/api";
 import { useCallsStream } from "@/hooks/useCallsStream";
@@ -131,11 +131,10 @@ export function CallsPage() {
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                statusFilter === s
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${statusFilter === s
                   ? "bg-dormero-700 text-white"
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+                }`}
             >
               {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -192,13 +191,14 @@ export function CallsPage() {
                     <SortIcon col={col} sortBy={sortBy} sortDir={sortDir} />
                   </th>
                 ))}
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Flag</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading && Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <Skeleton className="h-4 w-full" />
                     </td>
@@ -207,17 +207,17 @@ export function CallsPage() {
               ))}
               {isError && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Failed to load calls. Make sure the server is running.
                   </td>
                 </tr>
               )}
               {!isLoading && !isError && data?.calls.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Phone size={24} />
-                      <p className="text-sm">No calls yet. Click "Sync from ElevenLabs" to pull recent conversations.</p>
+                      <p className="text-sm">No calls yet. Wait for new calls or click "Sync from ElevenLabs" to pull recent conversations.</p>
                     </div>
                   </td>
                 </tr>
@@ -251,6 +251,15 @@ export function CallsPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {call.messageCount ?? "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {call.flag ? (
+                      call.flag.positive
+                        ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-md px-2 py-0.5"><ThumbsUp size={11} />Positive</span>
+                        : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-100 rounded-md px-2 py-0.5"><ThumbsDown size={11} />Negative</span>
+                    ) : (
+                      <span className="text-gray-300 text-xs italic">No flag</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-dormero-600 transition-colors" />

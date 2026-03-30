@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { eq, desc, asc, like, or, sql, gte, lte, and } from "drizzle-orm";
-import { calls, callTranscripts, callFeedback } from "@clarai/db";
+import { calls, callTranscripts, callFeedback, callFlags } from "@clarai/db";
 
 export async function callsRoutes(app: FastifyInstance) {
   // GET /api/calls
@@ -93,18 +93,26 @@ export async function callsRoutes(app: FastifyInstance) {
           feedbackSource: callFeedback.source,
           feedbackCreatedAt: callFeedback.createdAt,
           feedbackUpdatedAt: callFeedback.updatedAt,
+          flagId: callFlags.id,
+          flagCallId: callFlags.callId,
+          flagPositive: callFlags.positive,
+          flagComment: callFlags.comment,
+          flagCreatedAt: callFlags.createdAt,
+          flagUpdatedAt: callFlags.updatedAt,
         })
         .from(calls)
         .leftJoin(callFeedback, eq(calls.id, callFeedback.callId))
+        .leftJoin(callFlags, eq(calls.id, callFlags.callId))
         .where(whereClause)
         .orderBy(orderExpr)
         .limit(pageSize)
         .offset(offset);
 
-      // Reshape: nest feedback fields into a `feedback` object (null when absent)
+      // Reshape: nest feedback and flag fields into nested objects (null when absent)
       const shaped = rows.map(({
         feedbackId, feedbackCallId, feedbackRating, feedbackComment,
         feedbackSource, feedbackCreatedAt, feedbackUpdatedAt,
+        flagId, flagCallId, flagPositive, flagComment, flagCreatedAt, flagUpdatedAt,
         ...call
       }) => ({
         ...call,
@@ -116,6 +124,14 @@ export async function callsRoutes(app: FastifyInstance) {
           source: feedbackSource,
           createdAt: feedbackCreatedAt,
           updatedAt: feedbackUpdatedAt,
+        } : null,
+        flag: flagId ? {
+          id: flagId,
+          callId: flagCallId,
+          positive: flagPositive === 1,
+          comment: flagComment,
+          createdAt: flagCreatedAt,
+          updatedAt: flagUpdatedAt,
         } : null,
       }));
 
@@ -167,10 +183,19 @@ export async function callsRoutes(app: FastifyInstance) {
         .where(eq(callFeedback.callId, id))
         .limit(1);
 
+      const flagRows = await db
+        .select()
+        .from(callFlags)
+        .where(eq(callFlags.callId, id))
+        .limit(1);
+
+      const rawFlag = flagRows[0] ?? null;
+
       return reply.send({
         call: callRows[0],
         transcript,
         feedback: feedbackRows[0] ?? null,
+        flag: rawFlag ? { ...rawFlag, positive: rawFlag.positive === 1 } : null,
       });
     } catch (err) {
       request.log.error(err);

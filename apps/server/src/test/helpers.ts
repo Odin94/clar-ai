@@ -3,82 +3,26 @@
  * Each call to `createTestApp()` returns an isolated app + db pair so tests
  * never share state.
  */
+import { fileURLToPath } from "url";
+import { resolve, dirname } from "path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import {
   hotels,
   knowledgeEntries,
   calls,
   callTranscripts,
   callFeedback,
+  callFlags,
 } from "@clarai/db";
 import { buildApp } from "../buildApp.js";
 
-// Re-export as named tables for use in test files
-export const schema = { hotels, knowledgeEntries, calls, callTranscripts, callFeedback };
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const migrationsFolder = resolve(__dirname, "../../../../packages/db/migrations");
 
-// ── DDL (mirrors packages/db/src/seed.ts) ────────────────────────────────────
-const DDL = `
-CREATE TABLE IF NOT EXISTS hotels (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  city TEXT NOT NULL,
-  address TEXT,
-  phone TEXT,
-  email TEXT,
-  description TEXT,
-  reception_hours TEXT,
-  check_in_time TEXT,
-  check_out_time TEXT,
-  total_rooms INTEGER,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS knowledge_entries (
-  id TEXT PRIMARY KEY,
-  hotel_id TEXT REFERENCES hotels(id),
-  topic TEXT NOT NULL,
-  subtopic TEXT,
-  content TEXT NOT NULL,
-  keywords TEXT,
-  sort_order INTEGER DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_ke_hotel_topic ON knowledge_entries(hotel_id, topic);
-CREATE INDEX IF NOT EXISTS idx_ke_topic ON knowledge_entries(topic);
-CREATE TABLE IF NOT EXISTS calls (
-  id TEXT PRIMARY KEY,
-  agent_id TEXT NOT NULL,
-  status TEXT,
-  start_time INTEGER NOT NULL,
-  duration INTEGER,
-  summary TEXT,
-  call_successful TEXT,
-  message_count INTEGER,
-  cost_credits REAL,
-  termination_reason TEXT,
-  synced_at INTEGER,
-  hotel_mentioned TEXT,
-  complaint_category TEXT
-);
-CREATE TABLE IF NOT EXISTS call_transcripts (
-  id TEXT PRIMARY KEY,
-  call_id TEXT NOT NULL REFERENCES calls(id),
-  role TEXT NOT NULL,
-  message TEXT NOT NULL,
-  time_in_call_secs REAL,
-  sort_order INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS call_feedback (
-  id TEXT PRIMARY KEY,
-  call_id TEXT NOT NULL REFERENCES calls(id) UNIQUE,
-  rating INTEGER,
-  comment TEXT,
-  source TEXT NOT NULL DEFAULT 'manual',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-`;
+// Re-export as named tables for use in test files
+export const schema = { hotels, knowledgeEntries, calls, callTranscripts, callFeedback, callFlags };
 
 export const TEST_API_KEY = "test-api-key-secret";
 
@@ -88,7 +32,10 @@ export async function createTestApp(opts: { webhookSecret?: string; apiKey?: str
   // In-memory SQLite – isolated per test suite
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(DDL);
+
+  // Apply all migrations so the schema is always up to date
+  const migrationDb = drizzle(sqlite);
+  migrate(migrationDb, { migrationsFolder });
 
   const db = drizzle(sqlite, { schema }) as Awaited<
     ReturnType<typeof import("@clarai/db").getDb>

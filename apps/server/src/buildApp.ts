@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import type { getDb } from "@clarai/db";
 import { callsRoutes } from "./routes/calls.js";
 import { feedbackRoutes } from "./routes/feedback.js";
+import { flagsRoutes } from "./routes/flags.js";
 import { syncRoutes } from "./routes/sync.js";
 import { webhookRoutes } from "./routes/webhook.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
@@ -61,6 +62,7 @@ export async function buildApp(
 
       await api.register(callsRoutes);
       await api.register(feedbackRoutes);
+      await api.register(flagsRoutes);
       await api.register(syncRoutes);
       await api.register(webhookRoutes, { webhookSecret: opts.webhookSecret });
       await api.register(knowledgeRoutes);

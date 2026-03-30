@@ -2,6 +2,15 @@ const BASE = "/api";
 const API_KEY = import.meta.env.VITE_BACKEND_API_KEY as string | undefined;
 
 // Types
+export interface Flag {
+  id: string;
+  callId: string;
+  positive: boolean;
+  comment: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Call {
   id: string;
   agentId: string;
@@ -17,6 +26,7 @@ export interface Call {
   hotelMentioned: string | null;
   complaintCategory: string | null;
   feedback: Feedback | null;
+  flag: Flag | null;
 }
 
 export interface TranscriptEntry {
@@ -49,6 +59,28 @@ export interface CallDetailResponse {
   call: Call;
   transcript: TranscriptEntry[];
   feedback: Feedback | null;
+  flag: Flag | null;
+}
+
+export interface FlagEntry {
+  id: string;
+  callId: string;
+  positive: boolean;
+  comment: string | null;
+  createdAt: number;
+  updatedAt: number;
+  call: {
+    startTime: number;
+    hotelMentioned: string | null;
+    summary: string | null;
+  };
+}
+
+export interface FlagsResponse {
+  flags: FlagEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface SyncResponse {
@@ -145,6 +177,24 @@ export const api = {
     if (params?.rating) q.set("rating", String(params.rating));
     if (params?.hasComment) q.set("hasComment", params.hasComment);
     return request<FeedbackResponse>(`/feedback?${q}`);
+  },
+  getFlags: (params?: { page?: number; pageSize?: number; positive?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    if (params?.positive !== undefined) q.set("positive", String(params.positive));
+    return request<FlagsResponse>(`/flags?${q}`);
+  },
+  saveFlag: (id: string, data: { positive: boolean; comment?: string }) =>
+    request<{ flag: Flag }>(`/calls/${id}/flag`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteFlag: (id: string) =>
+    request<{ success: boolean }>(`/calls/${id}/flag`, { method: "DELETE" }),
+  getAllFlags: () => {
+    const q = new URLSearchParams({ pageSize: "1000" });
+    return request<FlagsResponse>(`/flags?${q}`);
   },
   sync: () => request<SyncResponse>("/sync", { method: "POST" }),
   getStats: () => request<StatsResponse>("/stats"),

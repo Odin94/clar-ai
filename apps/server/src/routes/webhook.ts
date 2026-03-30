@@ -64,8 +64,9 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookOptions =
         const db = app.db
         const now = Date.now()
         const nowSecs = Math.floor(now / 1000)
-        // Never trust LLM-provided timestamps — the model has no real clock and will hallucinate dates.
+        // Don't trust LLM-provided timestamps — the model has no real clock and will hallucinate dates.
         // Back-calculate start time from server receipt time minus reported call duration.
+        // We could probably configure elevenlabs to send a non-llm-generated timestamp
         const startTimeSecs = nowSecs - (data.metadata?.call_duration_secs ?? 0)
         const dcr = data.analysis?.data_collection_results
         const hotelMentioned = dcr?.hotel_mentioned?.value ?? null

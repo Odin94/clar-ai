@@ -2,7 +2,7 @@
   "version": "6",
   "dialect": "sqlite",
   "id": "85a0ed59-b26c-4e43-a156-dadba61f88a2",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "prevId": "437596db-3878-4ad9-b2ba-5ff605427a9d",
   "tables": {
     "call_feedback": {
       "name": "call_feedback",
